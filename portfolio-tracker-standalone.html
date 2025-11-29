@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clearsol O&M Portfolio Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .sidebar-item.active { background-color: rgb(31 41 55); color: white; }
+        .sidebar-item.active svg { color: rgb(59 130 246); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div id="app" class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="flex h-full w-64 flex-col bg-gray-900">
+            <div class="flex h-16 shrink-0 items-center px-6">
+                <i data-lucide="file-spreadsheet" class="h-8 w-8 text-blue-500"></i>
+                <span class="ml-3 text-xl font-bold text-white">Clearsol O&M</span>
+            </div>
+            <nav class="flex flex-1 flex-col px-4 py-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="#" onclick="showPage('dashboard')" id="nav-dashboard" class="sidebar-item active group flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                            <i data-lucide="layout-dashboard" class="h-5 w-5 shrink-0"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" onclick="showPage('sites')" id="nav-sites" class="sidebar-item group flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                            <i data-lucide="building-2" class="h-5 w-5 shrink-0"></i>
+                            Sites
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" onclick="showPage('import')" id="nav-import" class="sidebar-item group flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                            <i data-lucide="upload" class="h-5 w-5 shrink-0"></i>
+                            Import Data
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" onclick="showPage('settings')" id="nav-settings" class="sidebar-item group flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                            <i data-lucide="settings" class="h-5 w-5 shrink-0"></i>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="border-t border-gray-800 p-4">
+                <p class="text-xs text-gray-500">Portfolio Tracker v1.0</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto">
+            <!-- Dashboard Page -->
+            <div id="page-dashboard" class="page">
+                <header class="border-b border-gray-200 bg-white px-6 py-4">
+                    <h1 class="text-2xl font-semibold text-gray-900">Dashboard</h1>
+                    <p class="mt-1 text-sm text-gray-500">Portfolio Overview</p>
+                </header>
+                <div class="p-6 space-y-6">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="dashboard-stats">
+                        <!-- Populated by JS -->
+                    </div>
+                    
+                    <!-- SPV Breakdown & Quick Actions -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="font-semibold">Sites by SPV</h3>
+                            </div>
+                            <div class="p-6" id="spv-breakdown">
+                                <p class="text-gray-500 text-sm">No sites imported yet. Go to Import Data to get started.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="font-semibold">Quick Actions</h3>
+                            </div>
+                            <div class="p-6 space-y-3">
+                                <a href="#" onclick="showPage('sites')" class="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <div class="font-medium">View All Sites</div>
+                                    <p class="text-sm text-gray-500">Browse and manage your portfolio sites</p>
+                                </a>
+                                <a href="#" onclick="showPage('sites'); setTimeout(() => showAddSiteModal(), 100)" class="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <div class="font-medium">Add New Site</div>
+                                    <p class="text-sm text-gray-500">Create a new site entry manually</p>
+                                </a>
+                                <a href="#" onclick="showPage('import')" class="block p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <div class="font-medium">Import from Excel</div>
+                                    <p class="text-sm text-gray-500">Bulk import sites from your spreadsheet</p>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sites Page -->
+            <div id="page-sites" class="page hidden">
+                <header class="border-b border-gray-200 bg-white px-6 py-4">
+                    <h1 class="text-2xl font-semibold text-gray-900">Sites</h1>
+                    <p class="mt-1 text-sm text-gray-500" id="sites-count">0 sites in portfolio</p>
+                </header>
+                <div class="p-6">
+                    <div class="mb-6 flex items-center justify-between">
+                        <div class="relative max-w-sm">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="search-input" placeholder="Search sites..." 
+                                   class="flex h-9 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                   oninput="filterSites()">
+                        </div>
+                        <button onclick="showAddSiteModal()" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700">
+                            <i data-lucide="plus" class="mr-2 h-4 w-4"></i>
+                            Add Site
+                        </button>
+                    </div>
+                    
+                    <!-- Sites Table -->
+                    <div class="overflow-hidden rounded-lg border border-gray-200">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100" onclick="sortSites('name')">
+                                            Site Name <i data-lucide="arrow-up-down" class="inline h-3 w-3 ml-1"></i>
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100" onclick="sortSites('systemSizeKwp')">
+                                            Size (kWp) <i data-lucide="arrow-up-down" class="inline h-3 w-3 ml-1"></i>
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Contract</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100" onclick="sortSites('onboardDate')">
+                                            Onboard Date <i data-lucide="arrow-up-down" class="inline h-3 w-3 ml-1"></i>
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">SPV</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Site Costs</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Fixed Fee (&lt;20MW)</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">£/kWp</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 cursor-pointer hover:bg-gray-100" onclick="sortSites('monthlyFee')">
+                                            Monthly Fee <i data-lucide="arrow-up-down" class="inline h-3 w-3 ml-1"></i>
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white" id="sites-table-body">
+                                    <tr>
+                                        <td colspan="10" class="px-4 py-8 text-center text-gray-500">
+                                            No sites found. Import your data or add a new site.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import Page -->
+            <div id="page-import" class="page hidden">
+                <header class="border-b border-gray-200 bg-white px-6 py-4">
+                    <h1 class="text-2xl font-semibold text-gray-900">Import Data</h1>
+                    <p class="mt-1 text-sm text-gray-500">Import sites from Excel spreadsheet</p>
+                </header>
+                <div class="p-6">
+                    <div class="max-w-2xl mx-auto space-y-6">
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="font-semibold">Import from Excel</h3>
+                                <p class="text-sm text-gray-500 mt-1">Upload your Clearsol O&M Framework Tracker spreadsheet to import site data.</p>
+                            </div>
+                            <div class="p-6 space-y-6">
+                                <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                                     onclick="document.getElementById('file-input').click()"
+                                     ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                                    <input type="file" id="file-input" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event)">
+                                    <i data-lucide="file-spreadsheet" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                    <p class="mt-4 text-sm text-gray-600">
+                                        <span id="file-name-display"><span class="font-medium text-blue-600">Click to upload</span> or drag and drop</span>
+                                    </p>
+                                    <p class="mt-1 text-xs text-gray-500">Excel files only (.xlsx, .xls)</p>
+                                </div>
+                                
+                                <button id="import-btn" onclick="importFile()" disabled
+                                        class="w-full inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i data-lucide="upload" class="mr-2 h-4 w-4"></i>
+                                    Import Sites
+                                </button>
+                                
+                                <div id="import-result" class="hidden p-4 rounded-lg"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="font-semibold">Import Requirements</h3>
+                            </div>
+                            <div class="p-6">
+                                <ul class="space-y-2 text-sm text-gray-600">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 font-bold">•</span>
+                                        The spreadsheet must contain a "Portfolio Tracker" tab
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 font-bold">•</span>
+                                        Site data should start from row 5 (rows 1-4 are headers)
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 font-bold">•</span>
+                                        Required columns: Site Name (C), System Size (D)
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 font-bold">•</span>
+                                        Optional: Contract (E), Onboard Date (F), PM Cost (G), CCTV (H), Cleaning (I), SPV (V)
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-yellow-500 font-bold">⚠</span>
+                                        <span class="text-yellow-700">Importing will replace all existing site data</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div id="page-settings" class="page hidden">
+                <header class="border-b border-gray-200 bg-white px-6 py-4">
+                    <h1 class="text-2xl font-semibold text-gray-900">Settings</h1>
+                    <p class="mt-1 text-sm text-gray-500">Configure portfolio settings</p>
+                </header>
+                <div class="p-6">
+                    <div class="max-w-2xl space-y-6">
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="font-semibold">Rate Tiers</h3>
+                                <p class="text-sm text-gray-500 mt-1">Current portfolio cost rates by capacity tier.</p>
+                            </div>
+                            <div class="p-6">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b">
+                                            <th class="text-left py-2 font-medium text-gray-500">Tier</th>
+                                            <th class="text-left py-2 font-medium text-gray-500">Capacity Range</th>
+                                            <th class="text-right py-2 font-medium text-gray-500">Rate (£/kWp)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="border-b">
+                                            <td class="py-3 font-medium">&lt;20MW</td>
+                                            <td class="py-3 text-gray-600">0 - 20 MW</td>
+                                            <td class="py-3 text-right">£2.00</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-3 font-medium">20-30MW</td>
+                                            <td class="py-3 text-gray-600">20 - 30 MW</td>
+                                            <td class="py-3 text-right">£1.80</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-3 font-medium">30-40MW</td>
+                                            <td class="py-3 text-gray-600">30 - 40 MW</td>
+                                            <td class="py-3 text-right">£1.70</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                            <div class="p-6 border-b border-gray-200">
+                                <h3 class="font-semibold">Data Management</h3>
+                            </div>
+                            <div class="p-6 space-y-3">
+                                <button onclick="exportData()" class="w-full inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                                    <i data-lucide="download" class="mr-2 h-4 w-4"></i>
+                                    Export Data as JSON
+                                </button>
+                                <button onclick="clearAllData()" class="w-full inline-flex items-center justify-center rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50">
+                                    <i data-lucide="trash-2" class="mr-2 h-4 w-4"></i>
+                                    Clear All Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Site Detail Page -->
+            <div id="page-site-detail" class="page hidden">
+                <header class="border-b border-gray-200 bg-white px-6 py-4">
+                    <h1 class="text-2xl font-semibold text-gray-900" id="detail-site-name">Site Name</h1>
+                    <p class="mt-1 text-sm text-gray-500" id="detail-site-subtitle">Rooftop • 0 kWp</p>
+                </header>
+                <div class="p-6 space-y-6" id="site-detail-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Site Modal -->
+    <div id="site-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-auto m-4">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 class="text-lg font-semibold" id="modal-title">Add New Site</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <form id="site-form" onsubmit="saveSite(event)" class="p-6 space-y-6">
+                <input type="hidden" id="site-id">
+                
+                <!-- Basic Info -->
+                <div class="space-y-4">
+                    <h4 class="text-sm font-medium text-gray-700">Basic Information</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium mb-1">Site Name *</label>
+                            <input type="text" id="site-name" required class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">System Size (kWp) *</label>
+                            <input type="number" id="site-size" step="0.01" required class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Site Type</label>
+                            <select id="site-type" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="Rooftop">Rooftop</option>
+                                <option value="Ground Mount">Ground Mount</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contract Info -->
+                <div class="space-y-4">
+                    <h4 class="text-sm font-medium text-gray-700">Contract Details</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Contract Status</label>
+                            <select id="site-contract" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Onboard Date</label>
+                            <input type="date" id="site-onboard" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">SPV</label>
+                            <select id="site-spv" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="">Select SPV...</option>
+                                <option value="OS2">OS2 - Olympus Solar 2 Ltd</option>
+                                <option value="AD1">AD1 - AMPYR Distributed Energy 1 Ltd</option>
+                                <option value="FS">FS - Fylde Solar Ltd</option>
+                                <option value="ESI8">ESI8 - Eden Sustainable Investments 8 Ltd</option>
+                                <option value="ESI1">ESI1 - Eden Sustainable Investments 1 Ltd</option>
+                                <option value="ESI10">ESI10 - Eden Sustainable Investments 10 Ltd</option>
+                                <option value="UV1">UV1 - ULTRAVOLT SPV1 LIMITED</option>
+                                <option value="SKY">SKY - Skylight Energy Ltd</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Costs -->
+                <div class="space-y-4">
+                    <h4 class="text-sm font-medium text-gray-700">Site Fixed Costs (£)</h4>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">PM Cost</label>
+                            <input type="number" id="site-pm" step="0.01" value="0" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">CCTV Cost</label>
+                            <input type="number" id="site-cctv" step="0.01" value="0" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Cleaning Cost</label>
+                            <input type="number" id="site-cleaning" step="0.01" value="0" class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="flex justify-end gap-3 pt-4 border-t">
+                    <button type="button" onclick="closeModal()" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700">
+                        Save Site
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // DATA STORE (localStorage)
+        // ============================================
+        const STORAGE_KEY = 'clearsol_portfolio_sites';
+        
+        function getSites() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        }
+        
+        function saveSites(sites) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
+        }
+        
+        function generateId() {
+            return Math.random().toString(36).substring(2, 15);
+        }
+
+        // ============================================
+        // CALCULATIONS
+        // ============================================
+        const RATE_TIERS = {
+            '<20MW': 2.0,
+            '20-30MW': 1.8,
+            '30-40MW': 1.7
+        };
+        
+        function calculateSite(site) {
+            const siteFixedCosts = (site.pmCost || 0) + (site.cctvCost || 0) + (site.cleaningCost || 0);
+            const isContracted = site.contractStatus === 'Yes';
+            
+            const portfolioCost_20MW = site.systemSizeKwp * RATE_TIERS['<20MW'];
+            const portfolioCost_30MW = site.systemSizeKwp * RATE_TIERS['20-30MW'];
+            const portfolioCost_40MW = site.systemSizeKwp * RATE_TIERS['30-40MW'];
+            
+            const fixedFee_20MW = siteFixedCosts + portfolioCost_20MW;
+            const fixedFee_30MW = siteFixedCosts + portfolioCost_30MW;
+            const fixedFee_40MW = siteFixedCosts + portfolioCost_40MW;
+            
+            const feePerKwp_20MW = isContracted && site.systemSizeKwp > 0 ? fixedFee_20MW / site.systemSizeKwp : 0;
+            const feePerKwp_30MW = isContracted && site.systemSizeKwp > 0 ? fixedFee_30MW / site.systemSizeKwp : 0;
+            const feePerKwp_40MW = isContracted && site.systemSizeKwp > 0 ? fixedFee_40MW / site.systemSizeKwp : 0;
+            
+            const monthlyFee = isContracted ? fixedFee_20MW / 12 : 0;
+            
+            return {
+                ...site,
+                siteFixedCosts,
+                portfolioCost_20MW,
+                portfolioCost_30MW,
+                portfolioCost_40MW,
+                fixedFee_20MW,
+                fixedFee_30MW,
+                fixedFee_40MW,
+                feePerKwp_20MW,
+                feePerKwp_30MW,
+                feePerKwp_40MW,
+                monthlyFee
+            };
+        }
+        
+        function calculatePortfolioSummary(sites) {
+            const contractedSites = sites.filter(s => s.contractStatus === 'Yes');
+            const totalCapacityKwp = sites.reduce((sum, s) => sum + (s.systemSizeKwp || 0), 0);
+            const contractedCapacityKwp = contractedSites.reduce((sum, s) => sum + (s.systemSizeKwp || 0), 0);
+            
+            const sitesWithCalcs = contractedSites.map(s => calculateSite(s));
+            const totalMonthlyFee = sitesWithCalcs.reduce((sum, s) => sum + s.monthlyFee, 0);
+            
+            const capacityMW = contractedCapacityKwp / 1000;
+            let currentTier = '<20MW';
+            if (capacityMW >= 30) currentTier = '30-40MW';
+            else if (capacityMW >= 20) currentTier = '20-30MW';
+            
+            const correctiveDaysAllowed = Math.round((contractedCapacityKwp / 1000 / 12) * 10) / 10;
+            
+            const sitesBySpv = {};
+            sites.forEach(site => {
+                const spv = site.spvCode || 'Unassigned';
+                sitesBySpv[spv] = (sitesBySpv[spv] || 0) + 1;
+            });
+            
+            return {
+                totalSites: sites.length,
+                contractedSites: contractedSites.length,
+                totalCapacityKwp,
+                contractedCapacityKwp,
+                currentTier,
+                totalMonthlyFee,
+                correctiveDaysAllowed,
+                sitesBySpv
+            };
+        }
+
+        // ============================================
+        // FORMATTING
+        // ============================================
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: 'GBP',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value || 0);
+        }
+        
+        function formatNumber(value, decimals = 2) {
+            return new Intl.NumberFormat('en-GB', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals
+            }).format(value || 0);
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB');
+        }
+
+        // ============================================
+        // PAGE NAVIGATION
+        // ============================================
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            
+            // Show selected page
+            document.getElementById(`page-${pageName}`).classList.remove('hidden');
+            
+            // Update nav
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            document.getElementById(`nav-${pageName}`).classList.add('active');
+            
+            // Refresh content
+            if (pageName === 'dashboard') renderDashboard();
+            if (pageName === 'sites') renderSitesTable();
+            
+            // Refresh icons
+            lucide.createIcons();
+        }
+
+        // ============================================
+        // DASHBOARD
+        // ============================================
+        function renderDashboard() {
+            const sites = getSites();
+            const summary = calculatePortfolioSummary(sites);
+            
+            document.getElementById('dashboard-stats').innerHTML = `
+                <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div class="flex flex-row items-center justify-between p-6 pb-2">
+                        <h3 class="text-sm font-medium text-gray-500">Total Sites</h3>
+                        <i data-lucide="building-2" class="h-5 w-5 text-gray-400"></i>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="text-3xl font-bold">${summary.totalSites}</div>
+                        <p class="text-sm text-gray-500 mt-1">${summary.contractedSites} contracted</p>
+                    </div>
+                </div>
+                
+                <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div class="flex flex-row items-center justify-between p-6 pb-2">
+                        <h3 class="text-sm font-medium text-gray-500">Total Capacity</h3>
+                        <i data-lucide="zap" class="h-5 w-5 text-yellow-500"></i>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="text-3xl font-bold">${formatNumber(summary.totalCapacityKwp / 1000, 1)} MW</div>
+                        <p class="text-sm text-gray-500 mt-1">${formatNumber(summary.contractedCapacityKwp / 1000, 1)} MW contracted</p>
+                    </div>
+                </div>
+                
+                <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div class="flex flex-row items-center justify-between p-6 pb-2">
+                        <h3 class="text-sm font-medium text-gray-500">Monthly Revenue</h3>
+                        <i data-lucide="pound-sterling" class="h-5 w-5 text-green-500"></i>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="text-3xl font-bold">${formatCurrency(summary.totalMonthlyFee)}</div>
+                        <p class="text-sm text-gray-500 mt-1">From contracted sites</p>
+                    </div>
+                </div>
+                
+                <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div class="flex flex-row items-center justify-between p-6 pb-2">
+                        <h3 class="text-sm font-medium text-gray-500">Current Tier</h3>
+                        <i data-lucide="calendar" class="h-5 w-5 text-blue-500"></i>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="text-3xl font-bold">${summary.currentTier}</div>
+                        <p class="text-sm text-gray-500 mt-1">${summary.correctiveDaysAllowed} corrective days/mo</p>
+                    </div>
+                </div>
+            `;
+            
+            // SPV Breakdown
+            const spvBreakdown = document.getElementById('spv-breakdown');
+            if (Object.keys(summary.sitesBySpv).length > 0) {
+                const sorted = Object.entries(summary.sitesBySpv).sort((a, b) => b[1] - a[1]);
+                spvBreakdown.innerHTML = sorted.map(([spv, count]) => `
+                    <div class="flex items-center justify-between py-2">
+                        <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">${spv}</span>
+                        <span class="font-medium">${count} sites</span>
+                    </div>
+                `).join('');
+            } else {
+                spvBreakdown.innerHTML = '<p class="text-gray-500 text-sm">No sites imported yet. Go to Import Data to get started.</p>';
+            }
+            
+            lucide.createIcons();
+        }
+
+        // ============================================
+        // SITES TABLE
+        // ============================================
+        let currentSort = { field: 'name', order: 'asc' };
+        let searchTerm = '';
+        
+        function renderSitesTable() {
+            let sites = getSites().map(s => calculateSite(s));
+            
+            // Filter
+            if (searchTerm) {
+                sites = sites.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            }
+            
+            // Sort
+            sites.sort((a, b) => {
+                let aVal = a[currentSort.field];
+                let bVal = b[currentSort.field];
+                
+                if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+                if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+                
+                if (aVal < bVal) return currentSort.order === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.order === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            document.getElementById('sites-count').textContent = `${sites.length} sites in portfolio`;
+            
+            const tbody = document.getElementById('sites-table-body');
+            
+            if (sites.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="px-4 py-8 text-center text-gray-500">
+                            No sites found. Import your data or add a new site.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = sites.map(site => `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="whitespace-nowrap px-4 py-3 text-sm">
+                            <a href="#" onclick="showSiteDetail('${site.id}')" class="font-medium text-blue-600 hover:text-blue-800 hover:underline">${site.name}</a>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${formatNumber(site.systemSizeKwp)}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm">
+                            <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${site.contractStatus === 'Yes' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-gray-50 text-gray-600 ring-gray-500/10'}">${site.contractStatus}</span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${formatDate(site.onboardDate)}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${site.spvCode || '—'}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${formatCurrency(site.siteFixedCosts)}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${formatCurrency(site.fixedFee_20MW)}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${site.feePerKwp_20MW > 0 ? formatNumber(site.feePerKwp_20MW) : '—'}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700">${site.monthlyFee > 0 ? formatCurrency(site.monthlyFee) : '—'}</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm">
+                            <div class="flex items-center gap-1">
+                                <button onclick="showSiteDetail('${site.id}')" class="p-1 text-gray-400 hover:text-gray-600">
+                                    <i data-lucide="eye" class="h-4 w-4"></i>
+                                </button>
+                                <button onclick="editSite('${site.id}')" class="p-1 text-gray-400 hover:text-gray-600">
+                                    <i data-lucide="pencil" class="h-4 w-4"></i>
+                                </button>
+                                <button onclick="deleteSite('${site.id}')" class="p-1 text-red-400 hover:text-red-600">
+                                    <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            lucide.createIcons();
+        }
+        
+        function sortSites(field) {
+            if (currentSort.field === field) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.order = 'asc';
+            }
+            renderSitesTable();
+        }
+        
+        function filterSites() {
+            searchTerm = document.getElementById('search-input').value;
+            renderSitesTable();
+        }
+
+        // ============================================
+        // SITE DETAIL
+        // ============================================
+        function showSiteDetail(siteId) {
+            const sites = getSites();
+            const site = sites.find(s => s.id === siteId);
+            if (!site) return;
+            
+            const calc = calculateSite(site);
+            
+            document.getElementById('detail-site-name').textContent = site.name;
+            document.getElementById('detail-site-subtitle').textContent = `${site.siteType || 'Rooftop'} • ${formatNumber(site.systemSizeKwp)} kWp`;
+            
+            document.getElementById('site-detail-content').innerHTML = `
+                <!-- Actions -->
+                <div class="flex items-center justify-between">
+                    <button onclick="showPage('sites')" class="inline-flex items-center text-gray-600 hover:text-gray-900">
+                        <i data-lucide="arrow-left" class="mr-2 h-4 w-4"></i>
+                        Back to Sites
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="editSite('${site.id}')" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                            <i data-lucide="pencil" class="mr-2 h-4 w-4"></i>
+                            Edit
+                        </button>
+                        <button onclick="deleteSite('${site.id}')" class="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-red-700">
+                            <i data-lucide="trash-2" class="mr-2 h-4 w-4"></i>
+                            Delete
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Basic Info -->
+                    <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="font-semibold">Basic Information</h3>
+                        </div>
+                        <div class="p-6 grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-500">Site Name</p>
+                                <p class="font-medium">${site.name}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">System Size</p>
+                                <p class="font-medium">${formatNumber(site.systemSizeKwp)} kWp</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Site Type</p>
+                                <p class="font-medium">${site.siteType || 'Rooftop'}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Contract Status</p>
+                                <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${site.contractStatus === 'Yes' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-gray-50 text-gray-600 ring-gray-500/10'}">${site.contractStatus}</span>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Onboard Date</p>
+                                <p class="font-medium">${formatDate(site.onboardDate)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">SPV</p>
+                                <p class="font-medium">${site.spvCode || '—'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cost Configuration -->
+                    <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="font-semibold">Site Fixed Costs</h3>
+                        </div>
+                        <div class="p-6 grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-500">PM Cost</p>
+                                <p class="font-medium">${formatCurrency(site.pmCost)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">CCTV Cost</p>
+                                <p class="font-medium">${formatCurrency(site.cctvCost)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Cleaning Cost</p>
+                                <p class="font-medium">${formatCurrency(site.cleaningCost)}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Total Site Costs</p>
+                                <p class="font-medium text-lg">${formatCurrency(calc.siteFixedCosts)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fee Calculations -->
+                    <div class="lg:col-span-2 rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="font-semibold">Fee Calculations by Portfolio Tier</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b">
+                                            <th class="text-left py-2 px-4 font-medium text-gray-500">Metric</th>
+                                            <th class="text-right py-2 px-4 font-medium text-gray-500">&lt;20MW</th>
+                                            <th class="text-right py-2 px-4 font-medium text-gray-500">20-30MW</th>
+                                            <th class="text-right py-2 px-4 font-medium text-gray-500">30-40MW</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="border-b">
+                                            <td class="py-2 px-4">Portfolio Cost</td>
+                                            <td class="text-right py-2 px-4">${formatCurrency(calc.portfolioCost_20MW)}</td>
+                                            <td class="text-right py-2 px-4">${formatCurrency(calc.portfolioCost_30MW)}</td>
+                                            <td class="text-right py-2 px-4">${formatCurrency(calc.portfolioCost_40MW)}</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-2 px-4">Fixed Fee (£)</td>
+                                            <td class="text-right py-2 px-4 font-medium">${formatCurrency(calc.fixedFee_20MW)}</td>
+                                            <td class="text-right py-2 px-4 font-medium">${formatCurrency(calc.fixedFee_30MW)}</td>
+                                            <td class="text-right py-2 px-4 font-medium">${formatCurrency(calc.fixedFee_40MW)}</td>
+                                        </tr>
+                                        <tr class="border-b">
+                                            <td class="py-2 px-4">Fee per kWp (£)</td>
+                                            <td class="text-right py-2 px-4">${calc.feePerKwp_20MW > 0 ? formatNumber(calc.feePerKwp_20MW) : '—'}</td>
+                                            <td class="text-right py-2 px-4">${calc.feePerKwp_30MW > 0 ? formatNumber(calc.feePerKwp_30MW) : '—'}</td>
+                                            <td class="text-right py-2 px-4">${calc.feePerKwp_40MW > 0 ? formatNumber(calc.feePerKwp_40MW) : '—'}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                                <p class="text-sm text-blue-800">
+                                    <strong>Monthly Fee:</strong> ${formatCurrency(calc.monthlyFee)}
+                                    ${site.contractStatus === 'No' ? '<span class="ml-2 text-gray-500">(Site not contracted)</span>' : ''}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            showPage('site-detail');
+            lucide.createIcons();
+        }
+
+        // ============================================
+        // SITE CRUD
+        // ============================================
+        function showAddSiteModal() {
+            document.getElementById('modal-title').textContent = 'Add New Site';
+            document.getElementById('site-form').reset();
+            document.getElementById('site-id').value = '';
+            document.getElementById('site-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        
+        function editSite(siteId) {
+            const sites = getSites();
+            const site = sites.find(s => s.id === siteId);
+            if (!site) return;
+            
+            document.getElementById('modal-title').textContent = 'Edit Site';
+            document.getElementById('site-id').value = site.id;
+            document.getElementById('site-name').value = site.name;
+            document.getElementById('site-size').value = site.systemSizeKwp;
+            document.getElementById('site-type').value = site.siteType || 'Rooftop';
+            document.getElementById('site-contract').value = site.contractStatus;
+            document.getElementById('site-onboard').value = site.onboardDate || '';
+            document.getElementById('site-spv').value = site.spvCode || '';
+            document.getElementById('site-pm').value = site.pmCost || 0;
+            document.getElementById('site-cctv').value = site.cctvCost || 0;
+            document.getElementById('site-cleaning').value = site.cleaningCost || 0;
+            
+            document.getElementById('site-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        
+        function closeModal() {
+            document.getElementById('site-modal').classList.add('hidden');
+        }
+        
+        function saveSite(event) {
+            event.preventDefault();
+            
+            const siteId = document.getElementById('site-id').value;
+            const sites = getSites();
+            
+            const siteData = {
+                name: document.getElementById('site-name').value,
+                systemSizeKwp: parseFloat(document.getElementById('site-size').value) || 0,
+                siteType: document.getElementById('site-type').value,
+                contractStatus: document.getElementById('site-contract').value,
+                onboardDate: document.getElementById('site-onboard').value || null,
+                spvCode: document.getElementById('site-spv').value || null,
+                pmCost: parseFloat(document.getElementById('site-pm').value) || 0,
+                cctvCost: parseFloat(document.getElementById('site-cctv').value) || 0,
+                cleaningCost: parseFloat(document.getElementById('site-cleaning').value) || 0
+            };
+            
+            if (siteId) {
+                // Update
+                const index = sites.findIndex(s => s.id === siteId);
+                if (index !== -1) {
+                    sites[index] = { ...sites[index], ...siteData };
+                }
+            } else {
+                // Create
+                siteData.id = generateId();
+                sites.push(siteData);
+            }
+            
+            saveSites(sites);
+            closeModal();
+            renderSitesTable();
+            renderDashboard();
+        }
+        
+        function deleteSite(siteId) {
+            if (!confirm('Are you sure you want to delete this site?')) return;
+            
+            let sites = getSites();
+            sites = sites.filter(s => s.id !== siteId);
+            saveSites(sites);
+            
+            showPage('sites');
+            renderSitesTable();
+            renderDashboard();
+        }
+
+        // ============================================
+        // IMPORT
+        // ============================================
+        let selectedFile = null;
+        
+        function handleFileSelect(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('file-name-display').innerHTML = `<span class="font-medium text-blue-600">${selectedFile.name}</span>`;
+                document.getElementById('import-btn').disabled = false;
+                document.getElementById('import-result').classList.add('hidden');
+            }
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            document.getElementById('drop-zone').classList.add('border-blue-500', 'bg-blue-50');
+        }
+        
+        function handleDragLeave(event) {
+            event.preventDefault();
+            document.getElementById('drop-zone').classList.remove('border-blue-500', 'bg-blue-50');
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('drop-zone').classList.remove('border-blue-500', 'bg-blue-50');
+            
+            const file = event.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                selectedFile = file;
+                document.getElementById('file-name-display').innerHTML = `<span class="font-medium text-blue-600">${selectedFile.name}</span>`;
+                document.getElementById('import-btn').disabled = false;
+                document.getElementById('import-result').classList.add('hidden');
+            }
+        }
+        
+        function importFile() {
+            if (!selectedFile) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const sheetName = 'Portfolio Tracker';
+                    const sheet = workbook.Sheets[sheetName];
+                    
+                    if (!sheet) {
+                        showImportResult(false, 'Portfolio Tracker sheet not found');
+                        return;
+                    }
+                    
+                    const sites = [];
+                    
+                    for (let row = 5; row <= 80; row++) {
+                        const siteName = sheet[`C${row}`]?.v;
+                        if (!siteName || typeof siteName !== 'string') continue;
+                        
+                        const systemSize = parseFloat(sheet[`D${row}`]?.v) || 0;
+                        if (systemSize === 0) continue;
+                        
+                        const contractValue = sheet[`E${row}`]?.v;
+                        const onboardDateRaw = sheet[`F${row}`]?.v;
+                        const pmCost = parseFloat(sheet[`G${row}`]?.v) || 0;
+                        const cctvCost = parseFloat(sheet[`H${row}`]?.v) || 0;
+                        const cleaningCost = parseFloat(sheet[`I${row}`]?.v) || 0;
+                        const spvCodeRaw = sheet[`V${row}`]?.v;
+                        
+                        let onboardDate = null;
+                        if (onboardDateRaw) {
+                            if (typeof onboardDateRaw === 'number') {
+                                const date = XLSX.SSF.parse_date_code(onboardDateRaw);
+                                onboardDate = `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+                            } else if (typeof onboardDateRaw === 'string') {
+                                onboardDate = onboardDateRaw;
+                            }
+                        }
+                        
+                        sites.push({
+                            id: generateId(),
+                            name: siteName,
+                            systemSizeKwp: systemSize,
+                            siteType: 'Rooftop',
+                            contractStatus: contractValue === 'Yes' ? 'Yes' : 'No',
+                            onboardDate,
+                            pmCost,
+                            cctvCost,
+                            cleaningCost,
+                            spvCode: typeof spvCodeRaw === 'string' ? spvCodeRaw : null
+                        });
+                    }
+                    
+                    if (sites.length === 0) {
+                        showImportResult(false, 'No valid sites found in spreadsheet');
+                        return;
+                    }
+                    
+                    saveSites(sites);
+                    showImportResult(true, `Successfully imported ${sites.length} sites`);
+                    renderDashboard();
+                    
+                } catch (err) {
+                    console.error(err);
+                    showImportResult(false, 'Error parsing spreadsheet: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(selectedFile);
+        }
+        
+        function showImportResult(success, message) {
+            const resultDiv = document.getElementById('import-result');
+            resultDiv.classList.remove('hidden', 'bg-green-50', 'text-green-800', 'bg-red-50', 'text-red-800');
+            resultDiv.classList.add(success ? 'bg-green-50' : 'bg-red-50', success ? 'text-green-800' : 'text-red-800');
+            resultDiv.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i data-lucide="${success ? 'check-circle' : 'alert-circle'}" class="h-5 w-5"></i>
+                    <span class="font-medium">${message}</span>
+                </div>
+                ${success ? `
+                    <div class="mt-4">
+                        <button onclick="showPage('sites')" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                            View Imported Sites
+                        </button>
+                    </div>
+                ` : ''}
+            `;
+            lucide.createIcons();
+        }
+
+        // ============================================
+        // DATA MANAGEMENT
+        // ============================================
+        function exportData() {
+            const sites = getSites();
+            const blob = new Blob([JSON.stringify(sites, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'portfolio-tracker-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function clearAllData() {
+            if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) return;
+            localStorage.removeItem(STORAGE_KEY);
+            renderDashboard();
+            renderSitesTable();
+            alert('All data cleared.');
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            renderDashboard();
+        });
+    </script>
+</body>
+</html>
