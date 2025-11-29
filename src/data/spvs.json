@@ -1,0 +1,10 @@
+[
+  { "id": "1", "code": "OS2", "name": "Olympus Solar 2 Ltd" },
+  { "id": "2", "code": "AD1", "name": "AMPYR Distributed Energy 1 Ltd" },
+  { "id": "3", "code": "FS", "name": "Fylde Solar Ltd" },
+  { "id": "4", "code": "ESI8", "name": "Eden Sustainable Investments 8 Ltd" },
+  { "id": "5", "code": "ESI1", "name": "Eden Sustainable Investments 1 Ltd" },
+  { "id": "6", "code": "ESI10", "name": "Eden Sustainable Investments 10 Ltd" },
+  { "id": "7", "code": "UV1", "name": "ULTRAVOLT SPV1 LIMITED" },
+  { "id": "8", "code": "SKY", "name": "Skylight Energy Ltd" }
+]
