@@ -116,6 +116,11 @@ export interface CMDaysMonthData {
   cumulativeAccumulated: number;  // Running total of accumulated days
   cumulativeUsed: number;         // Running total of used days
   cumulativeRemaining: number;    // Running total of remaining days
+  // Portfolio details for this month (historical snapshot)
+  numberOfSites: number;          // Number of contracted sites onboarded by this month
+  fixedCost: number;              // Total site fixed costs (PM + CCTV + Cleaning)
+  portfolioCost: number;          // Portfolio cost based on capacity and tier rate
+  totalFixedCost: number;         // fixedCost + portfolioCost
 }
 
 export interface CMDaysTrackingSummary {
