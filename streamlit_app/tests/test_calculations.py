@@ -88,9 +88,9 @@ class TestCalculations(unittest.TestCase):
         result = calculations.calculate_corrective_days(24000)
         self.assertEqual(result, 2.0)
         
-        # Test case 3: Rounding - 15000/1000/12 = 1.25 → rounds to 1.2 (banker's rounding)
+        # Test case 3: 15000/1000/12 = 1.25 → round(1.25*10)/10 = round(12.5)/10 = 12/10 = 1.2
         result = calculations.calculate_corrective_days(15000)
-        self.assertEqual(result, 1.2)  # 15/12 = 1.25, rounds to 1.2
+        self.assertEqual(result, 1.2)
     
     def test_determine_portfolio_tier(self):
         """Test portfolio tier determination based on total capacity."""
