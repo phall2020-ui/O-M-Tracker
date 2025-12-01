@@ -9,11 +9,13 @@ import {
   FileSpreadsheet,
   Settings,
   Upload,
+  Calendar,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Sites', href: '/sites', icon: Building2 },
+  { name: 'CM Days', href: '/cm-days', icon: Calendar },
   { name: 'Import Data', href: '/import', icon: Upload },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

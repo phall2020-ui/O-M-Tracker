@@ -97,3 +97,31 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+// CM Days Tracking types
+export interface CMDaysUsage {
+  id: string;
+  yearMonth: string;  // Format: YYYY-MM
+  daysUsed: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CMDaysMonthData {
+  yearMonth: string;
+  daysAccumulated: number;  // Days allowed/accumulated that month
+  daysUsed: number;         // Days used (manually entered)
+  daysRemaining: number;    // Accumulated - Used
+  cumulativeAccumulated: number;  // Running total of accumulated days
+  cumulativeUsed: number;         // Running total of used days
+  cumulativeRemaining: number;    // Running total of remaining days
+}
+
+export interface CMDaysTrackingSummary {
+  portfolioStartDate: string | null;
+  monthlyData: CMDaysMonthData[];
+  totalAccumulated: number;
+  totalUsed: number;
+  totalRemaining: number;
+}
