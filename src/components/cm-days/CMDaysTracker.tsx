@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CMDaysTrackingSummary, CMDaysMonthData } from '@/types';
-import { formatNumber, formatYearMonth } from '@/lib/calculations';
+import { formatNumber, formatYearMonth, formatCurrency } from '@/lib/calculations';
 import { Calendar, Clock, CheckCircle, AlertTriangle, Save } from 'lucide-react';
 
 interface CMDaysTrackerProps {
@@ -170,6 +170,10 @@ export function CMDaysTracker({ initialData }: CMDaysTrackerProps) {
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-2 text-xs font-semibold uppercase text-gray-500">Month</th>
+                <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500"># Sites</th>
+                <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500">Fixed Cost</th>
+                <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500">Portfolio Cost</th>
+                <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500">Total Fixed</th>
                 <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500">Accumulated</th>
                 <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500">Used</th>
                 <th className="text-right py-3 px-2 text-xs font-semibold uppercase text-gray-500">Monthly Balance</th>
@@ -181,6 +185,10 @@ export function CMDaysTracker({ initialData }: CMDaysTrackerProps) {
               {sortedMonthlyData.map((month) => (
                 <tr key={month.yearMonth} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-2 font-medium">{formatYearMonth(month.yearMonth)}</td>
+                  <td className="py-3 px-2 text-right text-gray-700">{month.numberOfSites}</td>
+                  <td className="py-3 px-2 text-right text-gray-700">{formatCurrency(month.fixedCost)}</td>
+                  <td className="py-3 px-2 text-right text-gray-700">{formatCurrency(month.portfolioCost)}</td>
+                  <td className="py-3 px-2 text-right font-medium text-gray-900">{formatCurrency(month.totalFixedCost)}</td>
                   <td className="py-3 px-2 text-right text-blue-600">{formatNumber(month.daysAccumulated, 1)}</td>
                   <td className="py-3 px-2 text-right">
                     {editingMonth === month.yearMonth ? (

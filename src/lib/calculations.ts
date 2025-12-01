@@ -177,20 +177,63 @@ export function getMonthsFromStart(startDate: string): string[] {
 }
 
 /**
+ * Get contracted sites for a specific month
+ * (sites onboarded on or before the end of that month)
+ */
+export function getContractedSitesForMonth(sites: Site[], yearMonth: string): Site[] {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const endOfMonth = new Date(year, month, 0); // Last day of the month
+  
+  return sites.filter(s => {
+    if (s.contractStatus !== 'Yes' || !s.onboardDate) return false;
+    const onboardDate = new Date(s.onboardDate);
+    return onboardDate <= endOfMonth;
+  });
+}
+
+/**
  * Calculate contracted capacity in kWp for a specific month
  * (sum of system sizes for sites onboarded on or before the end of that month)
  */
 export function getContractedCapacityKwpForMonth(sites: Site[], yearMonth: string): number {
-  const [year, month] = yearMonth.split('-').map(Number);
-  const endOfMonth = new Date(year, month, 0); // Last day of the month
+  return getContractedSitesForMonth(sites, yearMonth).reduce((sum, s) => sum + s.systemSizeKwp, 0);
+}
+
+/**
+ * Calculate portfolio details for a specific month
+ * Returns number of sites, fixed cost, portfolio cost and total fixed cost
+ */
+export function calculatePortfolioDetailsForMonth(sites: Site[], yearMonth: string, tiers: RateTier[] = DEFAULT_RATE_TIERS): {
+  numberOfSites: number;
+  fixedCost: number;
+  portfolioCost: number;
+  totalFixedCost: number;
+} {
+  const contractedSites = getContractedSitesForMonth(sites, yearMonth);
+  const numberOfSites = contractedSites.length;
   
-  return sites
-    .filter(s => {
-      if (s.contractStatus !== 'Yes' || !s.onboardDate) return false;
-      const onboardDate = new Date(s.onboardDate);
-      return onboardDate <= endOfMonth;
-    })
-    .reduce((sum, s) => sum + s.systemSizeKwp, 0);
+  // Calculate total fixed costs (PM + CCTV + Cleaning) for all contracted sites
+  const fixedCost = contractedSites.reduce((sum, site) => sum + calculateSiteFixedCosts(site), 0);
+  
+  // Calculate total capacity for tier determination
+  const totalCapacityKwp = contractedSites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
+  const totalCapacityMW = totalCapacityKwp / 1000;
+  
+  // Determine the current tier based on total capacity
+  const currentTier = determinePortfolioTier(totalCapacityMW, tiers);
+  
+  // Calculate portfolio cost (capacity * rate per kWp for current tier)
+  const portfolioCost = totalCapacityKwp * currentTier.ratePerKwp;
+  
+  // Total fixed cost = site fixed costs + portfolio cost
+  const totalFixedCost = fixedCost + portfolioCost;
+  
+  return {
+    numberOfSites,
+    fixedCost: Math.round(fixedCost * 100) / 100,
+    portfolioCost: Math.round(portfolioCost * 100) / 100,
+    totalFixedCost: Math.round(totalFixedCost * 100) / 100,
+  };
 }
 
 /**
@@ -228,6 +271,9 @@ export function calculateCMDaysTracking(
     cumulativeUsed += daysUsed;
     const cumulativeRemaining = cumulativeAccumulated - cumulativeUsed;
     
+    // Calculate portfolio details for this month
+    const portfolioDetails = calculatePortfolioDetailsForMonth(sites, yearMonth);
+    
     return {
       yearMonth,
       daysAccumulated: Math.round(daysAccumulated * 10) / 10,
@@ -236,6 +282,10 @@ export function calculateCMDaysTracking(
       cumulativeAccumulated: Math.round(cumulativeAccumulated * 10) / 10,
       cumulativeUsed: Math.round(cumulativeUsed * 10) / 10,
       cumulativeRemaining: Math.round(cumulativeRemaining * 10) / 10,
+      numberOfSites: portfolioDetails.numberOfSites,
+      fixedCost: portfolioDetails.fixedCost,
+      portfolioCost: portfolioDetails.portfolioCost,
+      totalFixedCost: portfolioDetails.totalFixedCost,
     };
   });
   
