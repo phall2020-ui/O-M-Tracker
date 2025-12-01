@@ -1,10 +1,11 @@
-import { Site, SPV } from '@/types';
+import { Site, SPV, CMDaysUsage } from '@/types';
 import { generateId } from './utils';
 import fs from 'fs';
 import path from 'path';
 
 const DATA_FILE = path.join(process.cwd(), 'src/data/sites.json');
 const SPV_FILE = path.join(process.cwd(), 'src/data/spvs.json');
+const CM_DAYS_FILE = path.join(process.cwd(), 'src/data/cm-days-usage.json');
 
 // Default SPVs
 export const DEFAULT_SPVS: SPV[] = [
@@ -21,6 +22,7 @@ export const DEFAULT_SPVS: SPV[] = [
 // In-memory cache
 let sitesCache: Site[] | null = null;
 let spvsCache: SPV[] | null = null;
+let cmDaysUsageCache: CMDaysUsage[] | null = null;
 
 function ensureDataDir() {
   const dataDir = path.join(process.cwd(), 'src/data');
@@ -146,4 +148,76 @@ export function importSites(sitesData: Omit<Site, 'id' | 'createdAt' | 'updatedA
 export function clearCache(): void {
   sitesCache = null;
   spvsCache = null;
+  cmDaysUsageCache = null;
+}
+
+// CM Days Usage Operations
+export function getCMDaysUsage(): CMDaysUsage[] {
+  if (cmDaysUsageCache) return cmDaysUsageCache;
+  
+  ensureDataDir();
+  
+  if (fs.existsSync(CM_DAYS_FILE)) {
+    const data = fs.readFileSync(CM_DAYS_FILE, 'utf-8');
+    cmDaysUsageCache = JSON.parse(data);
+    return cmDaysUsageCache!;
+  }
+  
+  // Initialize empty
+  cmDaysUsageCache = [];
+  saveCMDaysUsage(cmDaysUsageCache);
+  return cmDaysUsageCache;
+}
+
+function saveCMDaysUsage(usage: CMDaysUsage[]): void {
+  ensureDataDir();
+  fs.writeFileSync(CM_DAYS_FILE, JSON.stringify(usage, null, 2));
+  cmDaysUsageCache = usage;
+}
+
+export function getCMDaysUsageByMonth(yearMonth: string): CMDaysUsage | undefined {
+  return getCMDaysUsage().find(u => u.yearMonth === yearMonth);
+}
+
+export function upsertCMDaysUsage(yearMonth: string, daysUsed: number, notes: string | null): CMDaysUsage {
+  const usageList = getCMDaysUsage();
+  const existingIndex = usageList.findIndex(u => u.yearMonth === yearMonth);
+  const now = new Date().toISOString();
+  
+  if (existingIndex !== -1) {
+    // Update existing
+    usageList[existingIndex] = {
+      ...usageList[existingIndex],
+      daysUsed,
+      notes,
+      updatedAt: now,
+    };
+    saveCMDaysUsage(usageList);
+    return usageList[existingIndex];
+  } else {
+    // Create new
+    const newUsage: CMDaysUsage = {
+      id: generateId(),
+      yearMonth,
+      daysUsed,
+      notes,
+      createdAt: now,
+      updatedAt: now,
+    };
+    usageList.push(newUsage);
+    saveCMDaysUsage(usageList);
+    return newUsage;
+  }
+}
+
+export function deleteCMDaysUsage(yearMonth: string): boolean {
+  const usageList = getCMDaysUsage();
+  const index = usageList.findIndex(u => u.yearMonth === yearMonth);
+  
+  if (index === -1) return false;
+  
+  usageList.splice(index, 1);
+  saveCMDaysUsage(usageList);
+  
+  return true;
 }

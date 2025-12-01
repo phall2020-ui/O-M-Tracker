@@ -1,4 +1,4 @@
-import { Site, SiteWithCalculations, RateTier, PortfolioSummary } from '@/types';
+import { Site, SiteWithCalculations, RateTier, PortfolioSummary, CMDaysUsage, CMDaysMonthData, CMDaysTrackingSummary } from '@/types';
 
 // Default rate tiers matching the spreadsheet
 export const DEFAULT_RATE_TIERS: RateTier[] = [
@@ -93,7 +93,7 @@ export function calculatePortfolioSummary(sites: Site[]): PortfolioSummary {
   const totalMonthlyFee = sitesWithCalcs.reduce((sum, s) => sum + s.monthlyFee, 0);
   
   // Corrective days calculation
-  const correctiveDaysAllowed = Math.round((contractedCapacityKwp / 1000 / 12) * 10) / 10;
+  const correctiveDaysAllowed = calculateMonthlyCorrectiveDays(contractedCapacityKwp / 1000);
   
   // Sites by SPV
   const sitesBySpv: Record<string, number> = {};
@@ -128,4 +128,131 @@ export function formatNumber(value: number, decimals: number = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
+}
+
+// CM Days calculation functions
+
+/**
+ * Calculate the corrective maintenance days allowed for a given capacity (in MW)
+ * Formula: 1 CM day per MW per year = capacityMW / 12 per month
+ */
+export function calculateMonthlyCorrectiveDays(capacityMW: number): number {
+  return Math.round((capacityMW / 12) * 10) / 10;
+}
+
+/**
+ * Get the portfolio start date (earliest onboard date of any contracted site)
+ */
+export function getPortfolioStartDate(sites: Site[]): string | null {
+  const contractedSites = sites.filter(s => s.contractStatus === 'Yes' && s.onboardDate);
+  if (contractedSites.length === 0) return null;
+  
+  const sortedDates = contractedSites
+    .map(s => s.onboardDate!)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  
+  return sortedDates[0];
+}
+
+/**
+ * Get all months from start date to current date in YYYY-MM format
+ */
+export function getMonthsFromStart(startDate: string): string[] {
+  const months: string[] = [];
+  const start = new Date(startDate);
+  const now = new Date();
+  
+  // Normalize to first of month
+  start.setDate(1);
+  now.setDate(1);
+  
+  while (start <= now) {
+    const year = start.getFullYear();
+    const month = String(start.getMonth() + 1).padStart(2, '0');
+    months.push(`${year}-${month}`);
+    start.setMonth(start.getMonth() + 1);
+  }
+  
+  return months;
+}
+
+/**
+ * Calculate contracted capacity in kWp for a specific month
+ * (sum of system sizes for sites onboarded on or before the end of that month)
+ */
+export function getContractedCapacityKwpForMonth(sites: Site[], yearMonth: string): number {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const endOfMonth = new Date(year, month, 0); // Last day of the month
+  
+  return sites
+    .filter(s => {
+      if (s.contractStatus !== 'Yes' || !s.onboardDate) return false;
+      const onboardDate = new Date(s.onboardDate);
+      return onboardDate <= endOfMonth;
+    })
+    .reduce((sum, s) => sum + s.systemSizeKwp, 0);
+}
+
+/**
+ * Calculate CM Days tracking data for all months since portfolio start
+ */
+export function calculateCMDaysTracking(
+  sites: Site[],
+  cmDaysUsage: CMDaysUsage[]
+): CMDaysTrackingSummary {
+  const portfolioStartDate = getPortfolioStartDate(sites);
+  
+  if (!portfolioStartDate) {
+    return {
+      portfolioStartDate: null,
+      monthlyData: [],
+      totalAccumulated: 0,
+      totalUsed: 0,
+      totalRemaining: 0,
+    };
+  }
+  
+  const months = getMonthsFromStart(portfolioStartDate);
+  const usageMap = new Map(cmDaysUsage.map(u => [u.yearMonth, u.daysUsed]));
+  
+  let cumulativeAccumulated = 0;
+  let cumulativeUsed = 0;
+  
+  const monthlyData: CMDaysMonthData[] = months.map(yearMonth => {
+    const capacityMW = getContractedCapacityKwpForMonth(sites, yearMonth) / 1000;
+    const daysAccumulated = calculateMonthlyCorrectiveDays(capacityMW);
+    const daysUsed = usageMap.get(yearMonth) || 0;
+    const daysRemaining = daysAccumulated - daysUsed;
+    
+    cumulativeAccumulated += daysAccumulated;
+    cumulativeUsed += daysUsed;
+    const cumulativeRemaining = cumulativeAccumulated - cumulativeUsed;
+    
+    return {
+      yearMonth,
+      daysAccumulated: Math.round(daysAccumulated * 10) / 10,
+      daysUsed,
+      daysRemaining: Math.round(daysRemaining * 10) / 10,
+      cumulativeAccumulated: Math.round(cumulativeAccumulated * 10) / 10,
+      cumulativeUsed: Math.round(cumulativeUsed * 10) / 10,
+      cumulativeRemaining: Math.round(cumulativeRemaining * 10) / 10,
+    };
+  });
+  
+  return {
+    portfolioStartDate,
+    monthlyData,
+    totalAccumulated: Math.round(cumulativeAccumulated * 10) / 10,
+    totalUsed: Math.round(cumulativeUsed * 10) / 10,
+    totalRemaining: Math.round((cumulativeAccumulated - cumulativeUsed) * 10) / 10,
+  };
+}
+
+/**
+ * Format year-month string to display format (e.g., "Jan 2024")
+ */
+export function formatYearMonth(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
