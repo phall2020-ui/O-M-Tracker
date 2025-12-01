@@ -93,7 +93,7 @@ export function calculatePortfolioSummary(sites: Site[]): PortfolioSummary {
   const totalMonthlyFee = sitesWithCalcs.reduce((sum, s) => sum + s.monthlyFee, 0);
   
   // Corrective days calculation
-  const correctiveDaysAllowed = Math.round((contractedCapacityKwp / 1000 / 12) * 10) / 10;
+  const correctiveDaysAllowed = calculateMonthlyCorrectiveDays(contractedCapacityKwp / 1000);
   
   // Sites by SPV
   const sitesBySpv: Record<string, number> = {};
@@ -177,10 +177,10 @@ export function getMonthsFromStart(startDate: string): string[] {
 }
 
 /**
- * Calculate contracted capacity for a specific month
+ * Calculate contracted capacity in kWp for a specific month
  * (sum of system sizes for sites onboarded on or before the end of that month)
  */
-export function getContractedCapacityForMonth(sites: Site[], yearMonth: string): number {
+export function getContractedCapacityKwpForMonth(sites: Site[], yearMonth: string): number {
   const [year, month] = yearMonth.split('-').map(Number);
   const endOfMonth = new Date(year, month, 0); // Last day of the month
   
@@ -219,8 +219,7 @@ export function calculateCMDaysTracking(
   let cumulativeUsed = 0;
   
   const monthlyData: CMDaysMonthData[] = months.map(yearMonth => {
-    const capacityKwp = getContractedCapacityForMonth(sites, yearMonth);
-    const capacityMW = capacityKwp / 1000;
+    const capacityMW = getContractedCapacityKwpForMonth(sites, yearMonth) / 1000;
     const daysAccumulated = calculateMonthlyCorrectiveDays(capacityMW);
     const daysUsed = usageMap.get(yearMonth) || 0;
     const daysRemaining = daysAccumulated - daysUsed;

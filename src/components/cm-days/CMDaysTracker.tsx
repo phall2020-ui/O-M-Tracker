@@ -37,7 +37,8 @@ export function CMDaysTracker({ initialData }: CMDaysTrackerProps) {
       } else {
         setError(data.error);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch CM days tracking data:', err);
       setError('Failed to fetch CM days tracking data');
     } finally {
       setIsLoading(false);
@@ -69,7 +70,8 @@ export function CMDaysTracker({ initialData }: CMDaysTrackerProps) {
       } else {
         setError(data.error);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to save CM days usage:', err);
       setError('Failed to save CM days usage');
     } finally {
       setIsSaving(false);
