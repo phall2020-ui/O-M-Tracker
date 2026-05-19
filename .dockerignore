@@ -1,0 +1,7 @@
+.next
+node_modules
+npm-debug.log
+azure/main.parameters.json
+.env
+.env.*
+tsconfig.tsbuildinfo

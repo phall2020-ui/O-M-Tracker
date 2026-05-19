@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": { "value": "clearsol-om-tracker-prod" },
+    "sqlAdminLogin": { "value": "omadmin" },
+    "sqlAdminPassword": { "value": "<set-securely>" },
+    "nextAuthSecret": { "value": "<set-securely>" },
+    "notionToken": { "value": "<set-securely>" },
+    "notionSitesDatabaseId": { "value": "<notion-sites-database-id>" },
+    "notionSummaryPageId": { "value": "<notion-summary-page-id>" },
+    "cronSecret": { "value": "<set-securely>" },
+    "enableLogicApp": { "value": false }
+  }
+}

@@ -1,0 +1,10 @@
+[
+  { "name": "DATABASE_URL", "value": "sqlserver://<server>.database.windows.net:1433;database=<db>;user=<user>;password=<password>;encrypt=true;trustServerCertificate=false", "slotSetting": true },
+  { "name": "NEXTAUTH_URL", "value": "https://<app-name>.azurewebsites.net", "slotSetting": true },
+  { "name": "NEXTAUTH_SECRET", "value": "<set-in-azure>", "slotSetting": true },
+  { "name": "NOTION_TOKEN", "value": "<set-in-azure>", "slotSetting": true },
+  { "name": "NOTION_SITES_DATABASE_ID", "value": "<notion-sites-database-id>", "slotSetting": true },
+  { "name": "NOTION_BILLING_DATABASE_ID", "value": "<notion-billing-database-id>", "slotSetting": true },
+  { "name": "NOTION_SUMMARY_PAGE_ID", "value": "<notion-summary-page-id>", "slotSetting": true },
+  { "name": "CRON_SECRET", "value": "<set-in-azure>", "slotSetting": true }
+]

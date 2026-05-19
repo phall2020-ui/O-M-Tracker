@@ -1,0 +1,323 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+// User model for authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("VIEWER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs               AuditLog[]
+  cmWorkEntries           CmWorkEntry[]     @relation("CmWorkAuthor")
+  reviewedCmWorkEntries   CmWorkEntry[]     @relation("CmWorkReviewer")
+  notionSyncRuns          NotionSyncRun[]
+  billingRuns             BillingRun[]      @relation("BillingRunCreator")
+  createdBillingSnapshots BillingSnapshot[] @relation("BillingSnapshotCreator")
+  billingMonthLocks       BillingMonthLock[]
+  billingAdjustments      BillingAdjustment[]
+}
+
+model Contract {
+  id                        String              @id @default(cuid())
+  code                      String              @unique
+  name                      String
+  description               String?             @db.NVarChar(Max)
+  isDefault                 Boolean             @default(false)
+  isActive                  Boolean             @default(true)
+  notionSummaryPageId       String?
+  notionBillingDatabaseId   String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  sites                     Site[]
+  spvs                      SPV[]
+  rateTiers                 RateTier[]
+  billingRuns               BillingRun[]
+  billingSnapshots          BillingSnapshot[]
+  billingMonthLocks         BillingMonthLock[]
+  billingAdjustments        BillingAdjustment[]
+
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+// SPV (Special Purpose Vehicle) - Solar portfolio companies
+model SPV {
+  id         String   @id @default(cuid())
+  code       String
+  name       String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId String
+  sites      Site[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([contractId, code])
+  @@index([contractId])
+}
+
+// Solar installation site
+model Site {
+  id             String    @id @default(cuid())
+  name           String
+  systemSizeKwp  Float
+  siteType       String    @default("ROOFTOP")
+  contractStatus String    @default("NO")
+  onboardDate    DateTime?
+  forecastPacDate DateTime?
+  actualPacDate   DateTime?
+  pmCost         Float     @default(0)
+  pmDaysOnSite   Float     @default(0)
+  pmVisitsPerAnnum Float   @default(0)
+  cctvCost       Float     @default(0)
+  cleaningCost   Float     @default(0)
+  additionalCostAnnual Float @default(0)
+  additionalCostAnnualComment String? @db.NVarChar(Max)
+  additionalCostMonthly Float @default(0)
+  additionalCostMonthlyComment String? @db.NVarChar(Max)
+  additionalCostMonthlyStartMonth String?
+  additionalCostMonthlyEndMonth String?
+  billingPortfolio String   @default("CORE")
+  contract       Contract  @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId     String
+  spv            SPV?      @relation(fields: [spvId], references: [id])
+  spvId          String?
+  sourceSheet    String?
+  sourceRow      Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  auditLogs        AuditLog[]
+  cmWorkEntries    CmWorkEntry[]
+  billingSnapshots BillingSnapshot[]
+  billingAdjustments BillingAdjustment[]
+
+  @@index([contractId])
+  @@index([spvId])
+  @@index([contractStatus])
+  @@index([billingPortfolio])
+}
+
+model BillingSnapshot {
+  id                   String      @id @default(cuid())
+  contract             Contract    @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId           String
+  site                 Site?       @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteId               String?
+  notionDatabaseId     String
+  notionPageId         String
+  notionContractPageId String
+  billingEntry         String
+  billingPeriod        DateTime
+  month                String
+  siteName             String
+  spvCode              String?
+  spvName              String?
+  appliedTier          String?
+  provider             String?
+  paymentStatus        String?
+  expectedAmount       Float?
+  invoicedAmount       Float?
+  varianceAmount       Float?
+  variancePercent      Float?
+  varianceFlag         String?
+  proRataFactor        Float?
+  invoiceReference     String?
+  notes                String?
+  systemSizeKwp        Float
+  siteFixedCostsAnnual Float
+  variableCostAnnual   Float
+  annualFee            Float
+  sourcePayload        String?     @db.NVarChar(Max)
+  source               String      @default("NOTION_IMPORTED")
+  status               String      @default("COMMITTED")
+  notionSyncStatus     String      @default("NOT_SYNCED")
+  notionSyncedAt       DateTime?
+  notionSyncError      String?     @db.NVarChar(Max)
+  billingRun           BillingRun? @relation(fields: [billingRunId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  billingRunId         String?
+  createdBy            User?       @relation("BillingSnapshotCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdById          String?
+  importedAt           DateTime    @default(now())
+  createdAt            DateTime    @default(now())
+
+  @@unique([notionDatabaseId, notionPageId])
+  @@index([contractId])
+  @@index([siteId])
+  @@index([month])
+  @@index([spvCode])
+  @@index([source, status, month])
+  @@index([source, notionSyncStatus, month])
+  @@index([billingRunId])
+  @@index([createdById])
+}
+
+model BillingRun {
+  id                   String            @id @default(cuid())
+  contract             Contract          @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId           String
+  month                String
+  source               String            @default("APP_GENERATED")
+  status               String            @default("COMMITTED")
+  snapshotCount        Int               @default(0)
+  skippedExistingCount Int               @default(0)
+  missingRelationCount Int               @default(0)
+  report               String?           @db.NVarChar(Max)
+  error                String?           @db.NVarChar(Max)
+  createdBy            User?             @relation("BillingRunCreator", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdById          String?
+  createdAt            DateTime          @default(now())
+  completedAt          DateTime?
+  snapshots            BillingSnapshot[]
+
+  @@index([contractId])
+  @@index([month])
+  @@index([source, status, month])
+  @@index([createdById])
+}
+
+model BillingMonthLock {
+  id        String   @id @default(cuid())
+  contract  Contract @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId String
+  month     String
+  note      String?  @db.NVarChar(Max)
+  lockedBy  User     @relation(fields: [lockedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lockedById String
+  lockedAt  DateTime @default(now())
+
+  @@unique([contractId, month])
+  @@index([contractId])
+  @@index([lockedById])
+}
+
+model BillingAdjustment {
+  id             String   @id @default(cuid())
+  contract       Contract @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId     String
+  month          String
+  scope          String
+  allocationMode String   @default("KEEP_PORTFOLIO")
+  description    String
+  amount         Float
+  category       String?
+  site           Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteId         String?
+  spvCode        String?
+  spvName        String?
+  createdBy      User     @relation(fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([month])
+  @@index([scope, allocationMode])
+  @@index([siteId])
+  @@index([createdById])
+}
+
+// Rate tiers for portfolio cost calculations
+model RateTier {
+  id            String    @id @default(cuid())
+  contract      Contract  @relation(fields: [contractId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractId    String
+  tierName      String
+  minCapacityMW Float
+  maxCapacityMW Float?
+  ratePerKwp    Float
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([contractId])
+  @@index([isActive])
+}
+
+// Audit log for tracking changes
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String
+  oldValues  String?  @db.NVarChar(Max)
+  newValues  String?  @db.NVarChar(Max)
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  site       Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([siteId])
+  @@index([createdAt])
+}
+
+model CmWorkEntry {
+  id          String    @id @default(cuid())
+  site        Site      @relation(fields: [siteId], references: [id])
+  siteId      String
+  workDate    DateTime
+  hours       Float
+  days        Float
+  description String?
+  technician  String?
+  status      String    @default("PENDING")
+  author      User      @relation("CmWorkAuthor", fields: [authorId], references: [id])
+  authorId    String
+  reviewer    User?     @relation("CmWorkReviewer", fields: [reviewerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewerId  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([siteId])
+  @@index([authorId])
+  @@index([status])
+  @@index([workDate])
+}
+
+model NotionSyncRun {
+  id           String    @id @default(cuid())
+  status       String
+  trigger      String
+  targetPageId String?
+  payload      String?   @db.NVarChar(Max)
+  error        String?   @db.NVarChar(Max)
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  createdBy    User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById  String?
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+model NotionExternalMapping {
+  id               String   @id @default(cuid())
+  notionDatabaseId String
+  notionPageId     String
+  entityType       String
+  entityId         String
+  lastImportedAt   DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([notionDatabaseId, notionPageId])
+  @@index([entityType, entityId])
+}

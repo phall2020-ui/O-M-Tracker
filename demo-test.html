@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 TEST MODE - Clearsol O&M Portfolio Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --sidebar: #111827;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --text: #1f2937;
+            --text-muted: #6b7280;
+            --blue: #3b82f6;
+            --green: #10b981;
+            --amber: #f59e0b;
+            --purple: #8b5cf6;
+            --red: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+            padding-top: 40px;
+        }
+
+        /* Test Mode Banner */
+        .test-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #f59e0b, #ea580c);
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 256px;
+            background: var(--sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: calc(100vh - 40px);
+            top: 40px;
+            z-index: 100;
+        }
+
+        .logo {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #f59e0b, #ea580c);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .nav {
+            flex: 1;
+            padding: 16px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: #9ca3af;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: #1f2937;
+            color: white;
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--blue);
+        }
+
+        .nav-icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid #374151;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            margin-left: 256px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 24px 32px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card-icon.blue { background: #dbeafe; }
+        .card-icon.amber { background: #fef3c7; }
+        .card-icon.green { background: #d1fae5; }
+        .card-icon.purple { background: #ede9fe; }
+
+        .card-value {
+            font-size: 30px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .card-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .card-sub span {
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-blue { background: #dbeafe; color: #1d4ed8; }
+        .badge-green { background: #d1fae5; color: #047857; }
+        .badge-amber { background: #fef3c7; color: #b45309; }
+
+        /* Bottom Grid */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            background: #f9fafb;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 12px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover td {
+            background: #f9fafb;
+        }
+
+        .site-link {
+            color: var(--blue);
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        .site-link:hover {
+            text-decoration: underline;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-yes { background: #d1fae5; color: #047857; }
+        .status-no { background: #f3f4f6; color: #6b7280; }
+
+        /* Top Sites */
+        .top-site {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .top-site:hover {
+            background: #f9fafb;
+        }
+
+        .top-site-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-site-rank {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .rank-1 { background: #fef3c7; color: #b45309; }
+        .rank-2 { background: #e5e7eb; color: #4b5563; }
+        .rank-3 { background: #fed7aa; color: #c2410c; }
+        .rank-default { background: #f3f4f6; color: #6b7280; }
+
+        .top-site-name {
+            font-weight: 500;
+        }
+
+        .top-site-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .top-site-fee {
+            font-weight: 600;
+            color: var(--green);
+        }
+
+        .top-site-fee span {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Quick Actions */
+        .action-card {
+            display: block;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .action-card:hover {
+            border-color: var(--blue);
+            background: #eff6ff;
+        }
+
+        .action-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .action-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .action-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        /* Page Views */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* SPV Cards */
+        .spv-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .spv-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .spv-card:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .spv-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .spv-code {
+            padding: 4px 10px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .spv-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .spv-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .spv-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .spv-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .spv-revenue {
+            grid-column: span 2;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            margin-top: 4px;
+        }
+
+        .spv-revenue .spv-stat-value {
+            font-size: 24px;
+            color: var(--green);
+        }
+
+        /* Search */
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-width: 300px;
+            margin-bottom: 16px;
+        }
+
+        .search-box input {
+            border: none;
+            outline: none;
+            flex: 1;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .bottom-grid { grid-template-columns: 1fr; }
+            .spv-grid { grid-template-columns: repeat(2, 1fr); }
+            .actions-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            .main { margin-left: 0; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .spv-grid { grid-template-columns: 1fr; }
+            .content { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Mode Banner -->
+    <div class="test-banner">
+        🧪 TEST MODE - Using embedded sample data • Changes will not be saved on page refresh
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">Clearsol O&M</div>
+        </div>
+        <nav class="nav">
+            <a href="#" class="nav-item active" onclick="showPage('dashboard')">
+                <span class="nav-icon">📊</span>
+                Dashboard
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('sites')">
+                <span class="nav-icon">🏢</span>
+                Sites
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('spvs')">
+                <span class="nav-icon">💼</span>
+                SPV Portfolio
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('cmdays')">
+                <span class="nav-icon">🔧</span>
+                CM Days
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('settings')">
+                <span class="nav-icon">⚙️</span>
+                Settings
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            Portfolio Tracker v2.0 - TEST MODE
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+            <div class="header">
+                <h1>Dashboard</h1>
+                <p>Portfolio Overview (Test Data)</p>
+            </div>
+            <div class="content">
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="card" style="background: linear-gradient(135deg, #eff6ff, white);">
+                        <div class="card-header">
+                            <span class="card-title">Total Sites</span>
+                            <div class="card-icon blue">🏢</div>
+                        </div>
+                        <div class="card-value" id="totalSites">12</div>
+                        <div class="card-sub"><span id="contractedCount">11</span> contracted</div>
+                    </div>
+                    <div class="card" style="background: linear-gradient(135deg, #fefce8, white);">
+                        <div class="card-header">
+                            <span class="card-title">Total Capacity</span>
+                            <div class="card-icon amber">⚡</div>
+                        </div>
+                        <div class="card-value" id="totalCapacity">19.2 MW</div>
+                        <div class="card-sub"><span id="contractedCapacity">18.4 MW</span> contracted</div>
+                    </div>
+                    <div class="card" style="background: linear-gradient(135deg, #ecfdf5, white);">
+                        <div class="card-header">
+                            <span class="card-title">Monthly Revenue</span>
+                            <div class="card-icon green">💷</div>
+                        </div>
+                        <div class="card-value" id="monthlyRevenue">£32,840</div>
+                        <div class="card-sub"><span id="annualRevenue">£394,080</span> annually</div>
+                    </div>
+                    <div class="card" style="background: linear-gradient(135deg, #faf5ff, white);">
+                        <div class="card-header">
+                            <span class="card-title">Current Tier</span>
+                            <div class="card-icon purple">📅</div>
+                        </div>
+                        <div class="card-value" id="currentTier">&lt;20MW</div>
+                        <div class="card-sub"><span id="currentRate">£2.00</span>/kWp rate</div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">📈 Revenue Trend</div>
+                            <span class="badge badge-blue">Last 12 months</span>
+                        </div>
+                        <canvas id="revenueChart" height="120"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Contract Status</div>
+                        </div>
+                        <canvas id="contractChart" height="180"></canvas>
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px;">
+                                <span style="color: var(--text-muted);">Contracted</span>
+                                <span style="font-weight: 600;" id="contractedText">11 sites</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                                <span style="color: var(--text-muted);">Not Contracted</span>
+                                <span style="font-weight: 600;" id="notContractedText">1 site</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Section -->
+                <div class="bottom-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Capacity by SPV</div>
+                            <a href="#" onclick="showPage('spvs')" style="font-size: 14px; color: var(--blue); text-decoration: none;">View all →</a>
+                        </div>
+                        <canvas id="spvChart" height="150"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">🏆 Top Earning Sites</div>
+                            <a href="#" onclick="showPage('sites')" style="font-size: 14px; color: var(--blue); text-decoration: none;">View all →</a>
+                        </div>
+                        <div id="topSites"></div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="chart-card">
+                    <div class="chart-title" style="margin-bottom: 16px;">Quick Actions</div>
+                    <div class="actions-grid">
+                        <a href="#" class="action-card" onclick="showPage('sites')">
+                            <div class="action-icon">🏢</div>
+                            <div class="action-title">View All Sites</div>
+                            <div class="action-desc">Browse test portfolio sites</div>
+                        </a>
+                        <a href="#" class="action-card" onclick="alert('🧪 TEST MODE: Add functionality disabled in test mode')">
+                            <div class="action-icon">➕</div>
+                            <div class="action-title">Add New Site</div>
+                            <div class="action-desc">Disabled in test mode</div>
+                        </a>
+                        <a href="#" class="action-card" onclick="alert('🧪 TEST MODE: Import functionality disabled in test mode')">
+                            <div class="action-icon">📥</div>
+                            <div class="action-title">Import from Excel</div>
+                            <div class="action-desc">Disabled in test mode</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sites Page -->
+        <div id="sites" class="page">
+            <div class="header">
+                <h1>Sites</h1>
+                <p id="sitesCount">12 sites in portfolio (Test Data)</p>
+            </div>
+            <div class="content">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input type="text" placeholder="Search sites..." id="siteSearch" onkeyup="filterSites()">
+                </div>
+                <div class="chart-card">
+                    <div class="table-container">
+                        <table id="sitesTable">
+                            <thead>
+                                <tr>
+                                    <th>Site Name</th>
+                                    <th>Size (kWp)</th>
+                                    <th>Type</th>
+                                    <th>Contract</th>
+                                    <th>Onboard Date</th>
+                                    <th>SPV</th>
+                                    <th>Site Costs</th>
+                                    <th>Fixed Fee</th>
+                                    <th>Monthly Fee</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sitesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SPV Portfolio Page -->
+        <div id="spvs" class="page">
+            <div class="header">
+                <h1>SPV Portfolio</h1>
+                <p>Special Purpose Vehicle breakdown (Test Data)</p>
+            </div>
+            <div class="content">
+                <!-- SPV Summary Stats -->
+                <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Total SPVs</span>
+                            <div class="card-icon blue">💼</div>
+                        </div>
+                        <div class="card-value">8</div>
+                        <div class="card-sub">12 sites total</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Total Capacity</span>
+                            <div class="card-icon amber">⚡</div>
+                        </div>
+                        <div class="card-value" id="spvTotalCapacity">19.2 MW</div>
+                        <div class="card-sub">Across all SPVs</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Monthly Revenue</span>
+                            <div class="card-icon green">💷</div>
+                        </div>
+                        <div class="card-value" id="spvMonthlyRevenue">£32,840</div>
+                        <div class="card-sub">From contracted sites</div>
+                    </div>
+                </div>
+
+                <div class="spv-grid" id="spvGrid"></div>
+            </div>
+        </div>
+
+        <!-- CM Days Page -->
+        <div id="cmdays" class="page">
+            <div class="header">
+                <h1>Corrective Maintenance Days</h1>
+                <p>Track and manage CM day allowances (Test Data)</p>
+            </div>
+            <div class="content">
+                <div class="chart-card">
+                    <p style="color: var(--text-muted); padding: 40px; text-align: center;">
+                        🧪 CM Days functionality is disabled in test mode
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings" class="page">
+            <div class="header">
+                <h1>Settings</h1>
+                <p>Configure portfolio settings</p>
+            </div>
+            <div class="content">
+                <div class="chart-card" style="max-width: 600px;">
+                    <h3 style="margin-bottom: 8px;">Rate Tiers</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">Current portfolio cost rates by capacity tier.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tier</th>
+                                <th>Capacity Range</th>
+                                <th style="text-align: right;">Rate (£/kWp)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight: 600;">&lt;20MW</td>
+                                <td style="color: var(--text-muted);">0 - 20 MW</td>
+                                <td style="text-align: right;">£2.00</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">20-30MW</td>
+                                <td style="color: var(--text-muted);">20 - 30 MW</td>
+                                <td style="text-align: right;">£1.80</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">30-40MW</td>
+                                <td style="color: var(--text-muted);">30 - 40 MW</td>
+                                <td style="text-align: right;">£1.70</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ========================================
+        // TEST MODE - EMBEDDED DATA
+        // O&M Portfolio Tracker - Local Test Version
+        // ========================================
+
+        console.log('🧪 TEST MODE: Running with embedded sample data');
+        console.log('⚠️  Changes will not persist on page refresh');
+
+        // Global Data Storage (Embedded Test Data matching seed.ts)
+        let sites = [
+            { id: '1', name: 'Meadow Solar Farm', systemSizeKwp: 2450, siteType: 'Ground Mount', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-01-15', pmCost: 500, cctvCost: 200, cleaningCost: 300, spvCode: 'OS2' },
+            { id: '2', name: 'Hilltop Energy Park', systemSizeKwp: 1850, siteType: 'Rooftop', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-02-20', pmCost: 450, cctvCost: 150, cleaningCost: 250, spvCode: 'AD1' },
+            { id: '3', name: 'Valley View Solar', systemSizeKwp: 3200, siteType: 'Ground Mount', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-03-10', pmCost: 600, cctvCost: 250, cleaningCost: 400, spvCode: 'OS2' },
+            { id: '4', name: 'Sunrise Industrial', systemSizeKwp: 980, siteType: 'Rooftop', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-04-05', pmCost: 300, cctvCost: 100, cleaningCost: 150, spvCode: 'ESI8' },
+            { id: '5', name: 'Northfield Array', systemSizeKwp: 1560, siteType: 'Ground Mount', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-05-18', pmCost: 400, cctvCost: 150, cleaningCost: 200, spvCode: 'FS' },
+            { id: '6', name: 'Greenacre Station', systemSizeKwp: 2100, siteType: 'Ground Mount', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-06-22', pmCost: 480, cctvCost: 180, cleaningCost: 280, spvCode: 'ESI1' },
+            { id: '7', name: 'Riverside Solar', systemSizeKwp: 890, siteType: 'Rooftop', contractStatus: 'No', contract: 'No', onboardDate: null, pmCost: 280, cctvCost: 80, cleaningCost: 120, spvCode: 'UV1' },
+            { id: '8', name: 'Lakeside Power', systemSizeKwp: 1720, siteType: 'Ground Mount', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-08-14', pmCost: 420, cctvCost: 160, cleaningCost: 220, spvCode: 'SKY' },
+            { id: '9', name: 'Oakwood Farm', systemSizeKwp: 2680, siteType: 'Ground Mount', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-09-01', pmCost: 550, cctvCost: 220, cleaningCost: 350, spvCode: 'OS2' },
+            { id: '10', name: 'Pinewood Solar', systemSizeKwp: 1340, siteType: 'Rooftop', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-10-12', pmCost: 380, cctvCost: 140, cleaningCost: 180, spvCode: 'AD1' },
+            { id: '11', name: 'Cedar Heights', systemSizeKwp: 1980, siteType: 'Ground Mount', contractStatus: 'No', contract: 'No', onboardDate: null, pmCost: 460, cctvCost: 170, cleaningCost: 260, spvCode: 'ESI10' },
+            { id: '12', name: 'Willow Creek', systemSizeKwp: 760, siteType: 'Rooftop', contractStatus: 'Yes', contract: 'Yes', onboardDate: '2023-11-28', pmCost: 250, cctvCost: 70, cleaningCost: 100, spvCode: 'FS' }
+        ];
+
+        let spvs = [
+            { code: 'OS2', name: 'Olympus Solar 2 Ltd' },
+            { code: 'AD1', name: 'AMPYR Distributed Energy 1 Ltd' },
+            { code: 'FS', name: 'Fylde Solar Ltd' },
+            { code: 'ESI8', name: 'Eden Sustainable Investments 8 Ltd' },
+            { code: 'ESI1', name: 'Eden Sustainable Investments 1 Ltd' },
+            { code: 'ESI10', name: 'Eden Sustainable Investments 10 Ltd' },
+            { code: 'UV1', name: 'ULTRAVOLT SPV1 LIMITED' },
+            { code: 'SKY', name: 'Skylight Energy Ltd' }
+        ];
+
+        let rateTiers = [
+            { tierName: '<20MW', minCapacityMW: 0, maxCapacityMW: 20, ratePerKwp: 2.00, isActive: true },
+            { tierName: '20-30MW', minCapacityMW: 20, maxCapacityMW: 30, ratePerKwp: 1.80, isActive: true },
+            { tierName: '30-40MW', minCapacityMW: 30, maxCapacityMW: 40, ratePerKwp: 1.70, isActive: true }
+        ];
+
+        let portfolio = {};
+        let dashboard = {};
+
+        console.log(`✅ Loaded ${sites.length} test sites, ${spvs.length} SPVs, ${rateTiers.length} rate tiers`);
+
+        // Get applicable rate tier for given capacity
+        function getRateTier(contractedMW) {
+            for (let tier of rateTiers) {
+                if (contractedMW >= tier.minCapacityMW) {
+                    if (!tier.maxCapacityMW || contractedMW < tier.maxCapacityMW) {
+                        return tier;
+                    }
+                }
+            }
+            return rateTiers[0] || { tierName: '<20MW', ratePerKwp: 2.00 };
+        }
+
+        // Calculate fees for a site
+        function calculateSiteFees(site, ratePerKwp) {
+            const siteFixedCosts = site.pmCost + site.cctvCost + site.cleaningCost;
+            const portfolioCost = site.systemSizeKwp * ratePerKwp;
+            const fixedFee = siteFixedCosts + portfolioCost;
+            const monthlyFee = site.contract === 'Yes' ? fixedFee / 12 : 0;
+
+            return {
+                siteFixedCosts,
+                portfolioCost,
+                fixedFee,
+                monthlyFee
+            };
+        }
+
+        // Calculate portfolio summary
+        function calculatePortfolio() {
+            const totalSites = sites.length;
+            const contractedSites = sites.filter(s => s.contract === 'Yes');
+            const totalCapacityKwp = sites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
+            const contractedCapacityKwp = contractedSites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
+
+            const totalCapacityMW = totalCapacityKwp / 1000;
+            const contractedCapacityMW = contractedCapacityKwp / 1000;
+
+            const tier = getRateTier(contractedCapacityMW);
+
+            let totalMonthlyRevenue = 0;
+            contractedSites.forEach(site => {
+                const fees = calculateSiteFees(site, tier.ratePerKwp);
+                totalMonthlyRevenue += fees.monthlyFee;
+            });
+
+            portfolio = {
+                totalSites,
+                contractedSites: contractedSites.length,
+                totalCapacityMW,
+                contractedCapacityMW,
+                currentTier: tier.tierName,
+                ratePerKwp: tier.ratePerKwp,
+                totalMonthlyRevenue,
+                totalAnnualRevenue: totalMonthlyRevenue * 12
+            };
+
+            return portfolio;
+        }
+
+        // Calculate dashboard data
+        function calculateDashboard() {
+            const tier = getRateTier(portfolio.contractedCapacityMW);
+
+            sites.forEach(site => {
+                const fees = calculateSiteFees(site, tier.ratePerKwp);
+                Object.assign(site, fees);
+            });
+
+            const topSites = sites
+                .filter(s => s.contract === 'Yes')
+                .sort((a, b) => b.monthlyFee - a.monthlyFee)
+                .slice(0, 5)
+                .map(s => ({
+                    name: s.name,
+                    spv: s.spvCode || 'N/A',
+                    size: s.systemSizeKwp,
+                    monthlyFee: s.monthlyFee
+                }));
+
+            const revenueTrend = Array.from({ length: 12 }, (_, i) => ({
+                month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i],
+                revenue: portfolio.totalMonthlyRevenue * (0.7 + (i * 0.025))
+            }));
+
+            dashboard = {
+                topSites,
+                revenueTrend,
+                contractStatus: {
+                    contracted: portfolio.contractedSites,
+                    notContracted: portfolio.totalSites - portfolio.contractedSites
+                }
+            };
+
+            const spvSummary = {};
+            sites.forEach(site => {
+                const code = site.spvCode || 'Unknown';
+                if (!spvSummary[code]) {
+                    spvSummary[code] = {
+                        code,
+                        name: spvs.find(s => s.code === code)?.name || code,
+                        sites: 0,
+                        contracted: 0,
+                        capacity: 0,
+                        revenue: 0
+                    };
+                }
+
+                spvSummary[code].sites++;
+                spvSummary[code].capacity += site.systemSizeKwp;
+
+                if (site.contract === 'Yes') {
+                    spvSummary[code].contracted++;
+                    spvSummary[code].revenue += site.monthlyFee || 0;
+                }
+            });
+
+            spvs = Object.values(spvSummary);
+            return dashboard;
+        }
+
+        // UI Functions
+        function formatCurrency(value) {
+            return '£' + (value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            const page = document.getElementById(pageId);
+            if (page) page.classList.add('active');
+
+            event.target.closest('.nav-item').classList.add('active');
+        }
+
+        function updateDashboard() {
+            // Update stat cards
+            document.getElementById('totalSites').textContent = portfolio.totalSites || 0;
+            document.getElementById('contractedCount').textContent = portfolio.contractedSites || 0;
+            document.getElementById('totalCapacity').textContent = `${(portfolio.totalCapacityMW || 0).toFixed(1)} MW`;
+            document.getElementById('contractedCapacity').textContent = `${(portfolio.contractedCapacityMW || 0).toFixed(1)} MW`;
+            document.getElementById('monthlyRevenue').textContent = formatCurrency(portfolio.totalMonthlyRevenue || 0);
+            document.getElementById('annualRevenue').textContent = formatCurrency(portfolio.totalAnnualRevenue || 0);
+            document.getElementById('currentTier').textContent = portfolio.currentTier || '<20MW';
+            document.getElementById('currentRate').textContent = `£${(portfolio.ratePerKwp || 2.00).toFixed(2)}`;
+
+            document.getElementById('contractedText').textContent = `${portfolio.contractedSites} sites`;
+            document.getElementById('notContractedText').textContent = `${portfolio.totalSites - portfolio.contractedSites} ${portfolio.totalSites - portfolio.contractedSites === 1 ? 'site' : 'sites'}`;
+            
+            document.getElementById('sitesCount').textContent = `${sites.length} sites in portfolio (Test Data)`;
+            document.getElementById('spvTotalCapacity').textContent = `${(portfolio.totalCapacityMW || 0).toFixed(1)} MW`;
+            document.getElementById('spvMonthlyRevenue').textContent = formatCurrency(portfolio.totalMonthlyRevenue || 0);
+
+            // Render tables and charts
+            renderTopSites();
+            renderSitesTable();
+            renderSPVGrid();
+            initCharts();
+        }
+
+        function renderTopSites() {
+            const container = document.getElementById('topSites');
+            if (!container || !dashboard.topSites) return;
+
+            container.innerHTML = dashboard.topSites.map((site, i) => {
+                const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-default';
+                return `
+                    <div class="top-site">
+                        <div class="top-site-info">
+                            <div class="top-site-rank ${rankClass}">${i + 1}</div>
+                            <div>
+                                <div class="top-site-name">${site.name}</div>
+                                <div class="top-site-meta">${site.spv} • ${site.size.toLocaleString()} kWp</div>
+                            </div>
+                        </div>
+                        <div class="top-site-fee">${formatCurrency(site.monthlyFee)} <span>/mo</span></div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSitesTable() {
+            const tbody = document.getElementById('sitesBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = sites.map(site => `
+                <tr>
+                    <td><a href="#" class="site-link">${site.name}</a></td>
+                    <td>${site.systemSizeKwp.toLocaleString()}</td>
+                    <td>${site.siteType || 'Rooftop'}</td>
+                    <td><span class="status-badge ${site.contract === 'Yes' ? 'status-yes' : 'status-no'}">${site.contract}</span></td>
+                    <td>${site.onboardDate ? new Date(site.onboardDate).toLocaleDateString('en-GB') : '—'}</td>
+                    <td>${site.spvCode || '—'}</td>
+                    <td>${formatCurrency(site.siteFixedCosts || (site.pmCost + site.cctvCost + site.cleaningCost))}</td>
+                    <td>${formatCurrency(site.fixedFee || 0)}</td>
+                    <td style="font-weight: 600; color: ${site.contract === 'Yes' ? 'var(--green)' : 'var(--text-muted)'}">
+                        ${site.contract === 'Yes' ? formatCurrency(site.monthlyFee || 0) : '—'}
+                    </td>
+                    <td>
+                        <button onclick="editSite('${site.id}')" style="background: var(--blue); color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-right: 4px; font-size: 12px;">Edit</button>
+                        <button onclick="deleteSite('${site.id}')" style="background: var(--red); color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Edit site function (TEST MODE)
+        function editSite(siteId) {
+            alert('🧪 TEST MODE\n\nEdit functionality works but changes will be lost on page refresh.\n\nIn SharePoint deployment, changes are saved permanently.');
+
+            const site = sites.find(s => s.id === siteId);
+            if (!site) {
+                alert('Site not found');
+                return;
+            }
+
+            const newName = prompt('Site Name:', site.name);
+            if (newName === null) return;
+
+            const newSize = parseFloat(prompt('System Size (kWp):', site.systemSizeKwp));
+            if (isNaN(newSize)) {
+                alert('Invalid system size');
+                return;
+            }
+
+            const newType = prompt('Site Type (Rooftop or Ground Mount):', site.siteType || 'Rooftop');
+            const newContract = prompt('Contract Status (Yes or No):', site.contract || 'No');
+            const newSPV = prompt('SPV Code:', site.spvCode || '');
+            const newPM = parseFloat(prompt('PM Cost (£):', site.pmCost || 0));
+            const newCCTV = parseFloat(prompt('CCTV Cost (£):', site.cctvCost || 0));
+            const newCleaning = parseFloat(prompt('Cleaning Cost (£):', site.cleaningCost || 0));
+
+            // Update in local array
+            site.name = newName;
+            site.systemSizeKwp = newSize;
+            site.siteType = newType;
+            site.contractStatus = newContract;
+            site.contract = newContract;
+            site.spvCode = newSPV;
+            site.pmCost = newPM || 0;
+            site.cctvCost = newCCTV || 0;
+            site.cleaningCost = newCleaning || 0;
+
+            console.log('✅ TEST MODE: Site updated in memory (will be lost on refresh)');
+
+            // Recalculate and update UI
+            initializeApp();
+        }
+
+        // Delete site function (TEST MODE)
+        function deleteSite(siteId) {
+            const site = sites.find(s => s.id === siteId);
+            if (!site) {
+                alert('Site not found');
+                return;
+            }
+
+            if (!confirm(`🧪 TEST MODE\n\nAre you sure you want to delete "${site.name}"?\n\nChanges will be lost on page refresh.`)) {
+                return;
+            }
+
+            // Remove from local array
+            sites = sites.filter(s => s.id !== siteId);
+
+            console.log('✅ TEST MODE: Site deleted from memory (will be restored on refresh)');
+
+            // Recalculate and update UI
+            initializeApp();
+        }
+
+        function renderSPVGrid() {
+            const grid = document.getElementById('spvGrid');
+            if (!grid) return;
+
+            grid.innerHTML = spvs.sort((a, b) => b.revenue - a.revenue).map(spv => `
+                <div class="spv-card">
+                    <div class="spv-header">
+                        <span class="spv-code">${spv.code}</span>
+                    </div>
+                    <div class="spv-name">${spv.name}</div>
+                    <div class="spv-stats">
+                        <div>
+                            <div class="spv-stat-label">Sites</div>
+                            <div class="spv-stat-value">${spv.sites}</div>
+                        </div>
+                        <div>
+                            <div class="spv-stat-label">Contracted</div>
+                            <div class="spv-stat-value">${spv.contracted}</div>
+                        </div>
+                        <div>
+                            <div class="spv-stat-label">Capacity</div>
+                            <div class="spv-stat-value">${(spv.capacity / 1000).toFixed(1)} MW</div>
+                        </div>
+                        <div class="spv-revenue">
+                            <div class="spv-stat-label">Monthly Revenue</div>
+                            <div class="spv-stat-value">${formatCurrency(spv.revenue)}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterSites() {
+            const search = document.getElementById('siteSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#sitesBody tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+
+        function initCharts() {
+            initRevenueChart();
+            initContractChart();
+            initSPVChart();
+        }
+
+        function initRevenueChart() {
+            const canvas = document.getElementById('revenueChart');
+            if (!canvas || !dashboard.revenueTrend) return;
+
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dashboard.revenueTrend.map(d => d.month),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: dashboard.revenueTrend.map(d => d.revenue),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: false, ticks: { callback: value => '£' + value.toLocaleString() } }
+                    }
+                }
+            });
+        }
+
+        function initContractChart() {
+            const canvas = document.getElementById('contractChart');
+            if (!canvas || !dashboard.contractStatus) return;
+
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Contracted', 'Not Contracted'],
+                    datasets: [{
+                        data: [dashboard.contractStatus.contracted, dashboard.contractStatus.notContracted],
+                        backgroundColor: ['#10b981', '#e5e7eb'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function initSPVChart() {
+            const canvas = document.getElementById('spvChart');
+            if (!canvas) return;
+
+            const topSPVs = spvs.sort((a, b) => b.capacity - a.capacity).slice(0, 5);
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topSPVs.map(s => s.code),
+                    datasets: [{
+                        label: 'Capacity (MW)',
+                        data: topSPVs.map(s => s.capacity / 1000),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Capacity (MW)' } }
+                    }
+                }
+            });
+        }
+
+        // Main initialization
+        function initializeApp() {
+            console.log('🧪 TEST MODE: Initializing with embedded data...');
+
+            calculatePortfolio();
+            calculateDashboard();
+            updateDashboard();
+
+            console.log('✅ TEST MODE: Dashboard updated');
+            console.log(`Sites: ${sites.length}, SPVs: ${spvs.length}, Portfolio: ${portfolio.totalCapacityMW.toFixed(1)} MW`);
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>

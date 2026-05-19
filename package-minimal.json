@@ -1,0 +1,21 @@
+{
+  "name": "om-tracker-standalone",
+  "version": "1.0.0",
+  "description": "O&M Portfolio Tracker - Standalone SQLite Version",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.0.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "prisma": "^7.0.1"
+  }
+}
