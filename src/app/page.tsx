@@ -28,6 +28,7 @@ interface DashboardData {
     usedDays: number;
     pendingDays: number;
     remainingDays: number;
+    cumulativeRemainingDays: number;
     usagePercent: number;
     status: 'UNDER' | 'WARNING' | 'EXCEEDED';
   }>;
@@ -65,10 +66,10 @@ function DashboardContent() {
   const contractedCapacityMW = (data?.summary?.contractedCapacityKwp || 0) / 1000;
   const cmAllowed = data?.cmUsage?.allowedDays ?? contractedCapacityMW / 12;
   const cmUsed = data?.cmUsage?.usedDays ?? 0;
-  const cmRemaining = data?.cmUsage?.remainingDays ?? Math.max(0, cmAllowed - cmUsed);
-  const cmPercent = cmAllowed > 0 ? (cmUsed / cmAllowed) * 100 : 0;
   const cmHistory = data?.cmMonthlyUsage?.slice(-6) || [];
   const latestCmMonth = cmHistory[cmHistory.length - 1];
+  const cmRemaining = latestCmMonth?.cumulativeRemainingDays ?? data?.cmUsage?.remainingDays ?? Math.max(0, cmAllowed - cmUsed);
+  const cmPercent = cmAllowed > 0 ? (cmUsed / cmAllowed) * 100 : 0;
   const siteActionDescription = canEditSites(user?.role)
     ? 'Browse and manage your portfolio sites'
     : 'Browse portfolio site records';
@@ -243,8 +244,8 @@ function DashboardContent() {
                       <td data-label="Month" style={{ fontWeight: 500 }}>{row.monthLabel}</td>
                       <td data-label="Allowed">{row.allowedDays.toFixed(2)} days</td>
                       <td data-label="Used">{row.usedDays.toFixed(2)} days</td>
-                      <td data-label="Remaining" style={{ color: row.remainingDays > 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
-                        {row.remainingDays.toFixed(2)} days
+                      <td data-label="Remaining" style={{ color: row.cumulativeRemainingDays > 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                        {row.cumulativeRemainingDays.toFixed(2)} days
                       </td>
                       <td data-label="Status">
                         <span className={`status-badge ${statusClass}`} style={statusStyle}>

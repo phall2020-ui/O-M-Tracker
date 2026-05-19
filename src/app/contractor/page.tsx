@@ -32,11 +32,16 @@ interface CmSummary {
   remainingDays: number;
 }
 
+interface CmMonthlyUsageRow {
+  cumulativeRemainingDays: number;
+}
+
 function ContractorPortalContent() {
   const { withContract } = useContractQuery();
   const [sites, setSites] = useState<SiteOption[]>([]);
   const [entries, setEntries] = useState<CmEntry[]>([]);
   const [summary, setSummary] = useState<CmSummary | null>(null);
+  const [monthlyUsage, setMonthlyUsage] = useState<CmMonthlyUsageRow[]>([]);
   const [siteId, setSiteId] = useState('');
   const [workDate, setWorkDate] = useState('');
   const [hours, setHours] = useState('');
@@ -73,6 +78,7 @@ function ContractorPortalContent() {
       if (cmJson.success) {
         setEntries(cmJson.data.entries);
         setSummary(cmJson.data.summary);
+        setMonthlyUsage(cmJson.data.monthlyUsage || []);
       } else {
         setError((previous) => previous || cmJson.error || 'Failed to fetch CM work');
       }
@@ -119,6 +125,8 @@ function ContractorPortalContent() {
 
   const pendingEntries = entries.filter((entry) => entry.status === 'PENDING');
   const approvedEntries = entries.filter((entry) => entry.status === 'APPROVED');
+  const latestMonth = monthlyUsage[monthlyUsage.length - 1];
+  const officialRemaining = latestMonth?.cumulativeRemainingDays ?? summary?.remainingDays ?? 0;
 
   return (
     <div className="main-content">
@@ -165,8 +173,8 @@ function ContractorPortalContent() {
               <span className="card-title">Remaining</span>
               <div className="card-icon purple"><Wrench className="h-5 w-5 text-purple-600" /></div>
             </div>
-            <div className="card-value">{formatNumber(summary?.remainingDays || 0, 2)}</div>
-            <div className="card-sub">official CM days</div>
+            <div className="card-value">{formatNumber(officialRemaining, 2)}</div>
+            <div className="card-sub">cumulative official CM days</div>
           </div>
         </div>
 

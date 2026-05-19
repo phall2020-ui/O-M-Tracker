@@ -182,6 +182,7 @@ function CMDaysContent() {
   const cumulativeUsed = latestMonth?.cumulativeUsedDays || 0;
   const cumulativeRemaining = latestMonth?.cumulativeRemainingDays || 0;
   const cumulativePending = monthlyUsage.reduce((sum, row) => sum + row.pendingDays, 0);
+  const officialRemaining = latestMonth?.cumulativeRemainingDays ?? summary?.remainingDays ?? 0;
   const cmPositionChartData = latestMonth
     ? [
         {
@@ -257,8 +258,8 @@ function CMDaysContent() {
               <span className="card-title">Remaining</span>
               <div className="card-icon purple">↻</div>
             </div>
-            <div className="card-value" style={{ color: (summary?.remainingDays || 0) < 0 ? 'var(--red)' : '#7c3aed' }}>{summary?.remainingDays.toFixed(2) || '0.00'}</div>
-            <div className="card-sub">official balance</div>
+            <div className="card-value" style={{ color: officialRemaining < 0 ? 'var(--red)' : '#7c3aed' }}>{officialRemaining.toFixed(2)}</div>
+            <div className="card-sub">cumulative allowance less approved usage</div>
           </div>
         </div>
 
@@ -379,8 +380,8 @@ function CMDaysContent() {
                       </td>
                       <td data-label="Approved Used" style={{ fontWeight: 600 }}>{row.usedDays.toFixed(2)} days</td>
                       <td data-label="Pending">{row.pendingDays.toFixed(2)} days</td>
-                      <td data-label="Remaining" style={{ color: row.remainingDays < 0 ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>
-                        {row.remainingDays.toFixed(2)} days
+                      <td data-label="Remaining" style={{ color: row.cumulativeRemainingDays < 0 ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>
+                        {row.cumulativeRemainingDays.toFixed(2)} days
                       </td>
                       <td data-label="Accum. Allowed">{row.cumulativeAllowedDays.toFixed(2)} days</td>
                       <td data-label="Accum. Used" style={{ fontWeight: 600 }}>{row.cumulativeUsedDays.toFixed(2)} days</td>
