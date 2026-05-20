@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Cloud, Database, FileDown, Lock, RefreshCw, Send, ShieldCheck, Trash2, Unlock, UploadCloud } from 'lucide-react';
+import { CalendarDays, Cloud, Database, FileDown, History, Lock, RefreshCw, Send, ShieldCheck, Trash2, Unlock, UploadCloud } from 'lucide-react';
 import { useContractQuery } from '@/lib/use-contract-query';
 
 interface AdminStatus {
@@ -96,12 +96,86 @@ interface SiteOption {
   spvCode: string | null;
 }
 
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  oldValues: string | null;
+  newValues: string | null;
+  createdAt: string;
+  user: {
+    name: string | null;
+    email: string | null;
+    role: string;
+  };
+  site: {
+    name: string;
+    spvCode: string | null;
+  } | null;
+}
+
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value || 0);
+}
+
+function parseAuditJson(value: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatAuditValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return 'blank';
+  if (typeof value === 'boolean') return value ? 'yes' : 'no';
+  if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleDateString('en-GB');
+    return value.length > 36 ? `${value.slice(0, 33)}...` : value;
+  }
+  return 'changed';
+}
+
+function auditDetails(log: AuditLogEntry) {
+  const oldValues = parseAuditJson(log.oldValues);
+  const newValues = parseAuditJson(log.newValues);
+  const ignoredFields = new Set(['id', 'createdAt', 'updatedAt', 'sourcePayload']);
+
+  if (log.action === 'CREATE') {
+    return `Created ${formatAuditValue(newValues?.name || newValues?.description || newValues?.email || log.entityId)}`;
+  }
+
+  if (log.action === 'DELETE') {
+    return `Deleted ${formatAuditValue(oldValues?.name || oldValues?.description || oldValues?.email || log.entityId)}`;
+  }
+
+  if (log.action === 'IMPORT' || log.action === 'SYNC') {
+    const summary = newValues || {};
+    const parts = Object.entries(summary)
+      .filter(([key]) => !ignoredFields.has(key))
+      .slice(0, 4)
+      .map(([key, value]) => `${key}: ${formatAuditValue(value)}`);
+    return parts.length ? parts.join(' · ') : `${log.action.toLowerCase()} completed`;
+  }
+
+  if (oldValues && newValues) {
+    const fields = Array.from(new Set([...Object.keys(oldValues), ...Object.keys(newValues)]))
+      .filter((key) => !ignoredFields.has(key))
+      .filter((key) => JSON.stringify(oldValues[key]) !== JSON.stringify(newValues[key]))
+      .slice(0, 5)
+      .map((key) => `${key}: ${formatAuditValue(oldValues[key])} -> ${formatAuditValue(newValues[key])}`);
+    if (fields.length) return fields.join(' · ');
+  }
+
+  return 'No field-level detail recorded';
 }
 
 function AdminContent() {
@@ -126,7 +200,8 @@ function AdminContent() {
   });
   const [message, setMessage] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
-  const [activeSection, setActiveSection] = useState<'readiness' | 'imports' | 'billing' | 'deployment'>('readiness');
+  const [activeSection, setActiveSection] = useState<'readiness' | 'imports' | 'billing' | 'audit' | 'deployment'>('readiness');
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch(withContract('/api/admin/status'));
@@ -177,12 +252,19 @@ function AdminContent() {
     }
   }, [withContract]);
 
+  const fetchAuditLogs = useCallback(async () => {
+    const res = await fetch(withContract('/api/admin/audit?take=150'));
+    const json = await res.json();
+    if (json.success) setAuditLogs(json.data);
+  }, [withContract]);
+
   useEffect(() => {
     fetchStatus();
     fetchBillingSnapshots(billingMonth);
     fetchMonthControls(billingMonth);
     fetchSiteOptions();
-  }, [billingMonth, fetchBillingSnapshots, fetchMonthControls, fetchSiteOptions, fetchStatus]);
+    fetchAuditLogs();
+  }, [billingMonth, fetchAuditLogs, fetchBillingSnapshots, fetchMonthControls, fetchSiteOptions, fetchStatus]);
 
   const runImport = async (commit: boolean) => {
     setIsWorking(true);
@@ -345,6 +427,7 @@ function AdminContent() {
           <button type="button" className={activeSection === 'readiness' ? 'active' : ''} onClick={() => setActiveSection('readiness')}>Readiness</button>
           <button type="button" className={activeSection === 'imports' ? 'active' : ''} onClick={() => setActiveSection('imports')}>Imports</button>
           <button type="button" className={activeSection === 'billing' ? 'active' : ''} onClick={() => setActiveSection('billing')}>Billing</button>
+          <button type="button" className={activeSection === 'audit' ? 'active' : ''} onClick={() => setActiveSection('audit')}>Change Log</button>
           <button type="button" className={activeSection === 'deployment' ? 'active' : ''} onClick={() => setActiveSection('deployment')}>Deployment</button>
         </div>
 
@@ -588,6 +671,56 @@ function AdminContent() {
             ) : (
               <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '16px' }}>No billing snapshots for this month yet.</p>
             )}
+          </div>
+        </div>
+        )}
+
+        {activeSection === 'audit' && (
+        <div className="chart-card">
+          <div className="chart-title" style={{ marginBottom: '16px' }}>
+            <History className="h-5 w-5" />
+            Change Log
+          </div>
+          <div className="button-row" style={{ marginBottom: '14px' }}>
+            <button onClick={fetchAuditLogs} disabled={isWorking} className="secondary-action">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Item</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{new Date(log.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                    <td>
+                      {log.user.name || log.user.email || 'System'}
+                      <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{log.user.role}</div>
+                    </td>
+                    <td><span className="status-badge status-yes">{log.action}</span></td>
+                    <td>
+                      {log.site ? `${log.site.name}${log.site.spvCode ? ` (${log.site.spvCode})` : ''}` : log.entityType}
+                      <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{log.entityType}</div>
+                    </td>
+                    <td style={{ maxWidth: '520px', whiteSpace: 'normal' }}>{auditDetails(log)}</td>
+                  </tr>
+                ))}
+                {auditLogs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ color: 'var(--text-muted)' }}>No changes have been logged yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
         )}
