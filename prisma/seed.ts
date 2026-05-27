@@ -49,10 +49,15 @@ async function main() {
     where: { code: { not: 'CLEARSOL_O_M' }, isDefault: true },
     data: { isDefault: false },
   });
+  const contractor = await prisma.contractor.upsert({
+    where: { code: 'CLEARSOL_O_M' },
+    update: { name: 'Clearsol O&M', slug: 'clearsol-o-m', isActive: true },
+    create: { code: 'CLEARSOL_O_M', name: 'Clearsol O&M', slug: 'clearsol-o-m', isActive: true },
+  });
   const contract = await prisma.contract.upsert({
     where: { code: 'CLEARSOL_O_M' },
-    update: { name: 'Clearsol O&M', isDefault: true, isActive: true },
-    create: { code: 'CLEARSOL_O_M', name: 'Clearsol O&M', isDefault: true, isActive: true },
+    update: { name: 'Clearsol O&M', isDefault: true, isActive: true, contractorId: contractor.id },
+    create: { code: 'CLEARSOL_O_M', name: 'Clearsol O&M', isDefault: true, isActive: true, contractorId: contractor.id },
   });
 
   // Create starter users for production smoke testing.
@@ -85,7 +90,7 @@ async function main() {
 
   for (const user of starterUsers) {
     const hashedPassword = await bcrypt.hash(user.password, 10);
-    await prisma.user.upsert({
+    const savedUser = await prisma.user.upsert({
       where: { email: user.email },
       update: { name: user.name, role: user.role },
       create: {
@@ -95,6 +100,14 @@ async function main() {
         role: user.role,
       },
     });
+
+    if (user.role === 'CONTRACTOR' || user.role === 'VIEWER') {
+      await prisma.userContractorAccess.upsert({
+        where: { userId_contractorId: { userId: savedUser.id, contractorId: contractor.id } },
+        update: {},
+        create: { userId: savedUser.id, contractorId: contractor.id },
+      });
+    }
   }
   console.log(`✅ Created ${starterUsers.length} starter users`);
 

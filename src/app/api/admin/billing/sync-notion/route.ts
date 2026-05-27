@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { publishNotionBillingSnapshots } from '@/lib/notion-billing-publisher';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 function parseLimit(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
@@ -13,9 +14,9 @@ function parseLimit(value: unknown): number | null {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(['ADMIN', 'MANAGER']);
+    const user = await requireRole(['ADMIN', 'MANAGER']);
     const body = await request.json();
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
 
     const result = await publishNotionBillingSnapshots({
       month: body.month,

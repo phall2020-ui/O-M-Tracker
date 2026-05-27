@@ -3,16 +3,17 @@ import { createSiteRecord, listSites } from '@/lib/portfolio-repository';
 import { SiteFormData } from '@/types';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { ALL_ROLES } from '@/lib/permissions';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 type ContractScopedSiteBody = SiteFormData & { contract?: string | null };
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(ALL_ROLES);
+    const user = await requireRole(ALL_ROLES);
     const { searchParams } = request.nextUrl;
     const search = searchParams.get('search') || '';
     const spvCode = searchParams.get('spv') || '';
-    const contractId = searchParams.get('contract');
+    const contractId = await resolveContractIdForUser(searchParams.get('contract'), user);
     const contractStatus = searchParams.get('contractStatus') || searchParams.get('status') || '';
     const sortBy = searchParams.get('sortBy') || 'name';
     const sortOrder = searchParams.get('sortOrder') || 'asc';
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole(['ADMIN', 'MANAGER']);
     const body: ContractScopedSiteBody = await request.json();
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
     
     // Validate required fields
     if (!body.name || body.systemSizeKwp === undefined) {

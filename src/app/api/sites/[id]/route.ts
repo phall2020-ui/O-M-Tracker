@@ -3,6 +3,7 @@ import { deleteSiteRecord, getSite, updateSiteRecord } from '@/lib/portfolio-rep
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { ALL_ROLES } from '@/lib/permissions';
 import { SiteFormData } from '@/types';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 type ContractScopedSiteBody = SiteFormData & { contract?: string | null };
 
@@ -11,9 +12,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(ALL_ROLES);
+    const user = await requireRole(ALL_ROLES);
     const { id } = await params;
-    const contractId = request.nextUrl.searchParams.get('contract');
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract'), user);
     const site = await getSite(id, contractId);
     
     if (!site) {
@@ -46,7 +47,7 @@ export async function PUT(
     const user = await requireRole(['ADMIN', 'MANAGER']);
     const { id } = await params;
     const body: ContractScopedSiteBody = await request.json();
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
     const updatedSite = await updateSiteRecord(id, body, user, contractId);
     
     if (!updatedSite) {
@@ -78,7 +79,7 @@ export async function DELETE(
   try {
     const user = await requireRole(['ADMIN', 'MANAGER']);
     const { id } = await params;
-    const contractId = request.nextUrl.searchParams.get('contract');
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract'), user);
     const success = await deleteSiteRecord(id, user, contractId);
     
     if (!success) {

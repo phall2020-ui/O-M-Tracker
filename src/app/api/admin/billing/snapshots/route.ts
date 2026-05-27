@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { listBillingSnapshots } from '@/lib/billing-repository';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(['ADMIN', 'MANAGER']);
+    const user = await requireRole(['ADMIN', 'MANAGER']);
     const { searchParams } = new URL(request.url);
+    const contractId = await resolveContractIdForUser(searchParams.get('contract') ?? searchParams.get('contractId'), user);
     const result = await listBillingSnapshots({
       month: searchParams.get('month'),
       source: searchParams.get('source'),
       status: searchParams.get('status'),
-      contractId: searchParams.get('contract') ?? searchParams.get('contractId'),
+      contractId,
     });
 
     return NextResponse.json({ success: true, data: result });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { previewOrImportNotionBillingSnapshots } from '@/lib/notion-integration';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import prisma from '@/lib/prisma';
-import { resolveContractId } from '@/lib/contracts';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 const DEFAULT_BILLING_DATABASE_ID = '39212e37-c38b-4c79-b1cd-8e54c976f7ea';
 
@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole(['ADMIN']);
     const body = await request.json();
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
-    const resolvedContractId = await resolveContractId(contractId);
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
+    const resolvedContractId = contractId;
     const contract = await prisma.contract.findUnique({
       where: { id: resolvedContractId },
       select: { notionBillingDatabaseId: true },

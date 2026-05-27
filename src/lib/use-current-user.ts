@@ -10,6 +10,7 @@ export interface CurrentUser {
   email?: string | null;
   name?: string | null;
   role: ClientRole;
+  contractorIds: string[];
 }
 
 export { canEditSites, canManageBilling };
@@ -33,6 +34,7 @@ export function useCurrentUser() {
             email: sessionUser.email,
             name: sessionUser.name,
             role: sessionUser.role,
+            contractorIds: sessionUser.contractorIds || [],
           });
         }
       } catch {

@@ -7,12 +7,13 @@ import {
   serializeCmWork,
 } from '@/lib/cm-work-repository';
 import { authErrorResponse, requireRole, requireUser } from '@/lib/authz';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireUser();
+    const user = await requireUser();
     const status = request.nextUrl.searchParams.get('status') || undefined;
-    const contractId = request.nextUrl.searchParams.get('contract');
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract'), user);
     const entries = await listCmWork(status, contractId);
 
     return NextResponse.json({
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole(['ADMIN', 'MANAGER', 'CONTRACTOR']);
     const body = await request.json();
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
     const entry = await createCmWork({ ...body, contractId }, user);
 
     return NextResponse.json({

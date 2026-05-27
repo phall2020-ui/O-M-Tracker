@@ -23,6 +23,7 @@ export interface NavigationItem {
 
 export const navigationItems: NavigationItem[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ALL_ROLES, group: 'Portfolio' },
+  { name: 'Overview', href: '/overview', icon: ShieldCheck, roles: OPERATIONAL_ROLES, group: 'Portfolio' },
   { name: 'Sites', href: '/sites', icon: Building2, roles: ALL_ROLES, group: 'Portfolio' },
   { name: 'Pipeline', href: '/pipeline', icon: ClipboardList, roles: ALL_ROLES, group: 'Portfolio' },
   { name: 'SPV Portfolio', href: '/spvs', icon: Briefcase, roles: ALL_ROLES, group: 'Portfolio' },

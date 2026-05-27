@@ -27,6 +27,34 @@ model User {
   createdBillingSnapshots BillingSnapshot[] @relation("BillingSnapshotCreator")
   billingMonthLocks       BillingMonthLock[]
   billingAdjustments      BillingAdjustment[]
+  contractorAccesses      UserContractorAccess[]
+}
+
+model Contractor {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contracts Contract[]
+  users     UserContractorAccess[]
+
+  @@index([isActive])
+}
+
+model UserContractorAccess {
+  id           String     @id @default(cuid())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  contractorId String
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, contractorId])
+  @@index([contractorId])
 }
 
 model Contract {
@@ -38,6 +66,8 @@ model Contract {
   isActive                  Boolean             @default(true)
   notionSummaryPageId       String?
   notionBillingDatabaseId   String?
+  contractor                Contractor?         @relation(fields: [contractorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contractorId              String?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
 
@@ -51,6 +81,7 @@ model Contract {
 
   @@index([isActive])
   @@index([isDefault])
+  @@index([contractorId])
 }
 
 // SPV (Special Purpose Vehicle) - Solar portfolio companies

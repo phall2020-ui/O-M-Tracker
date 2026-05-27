@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSpvMonthlyReport } from '@/lib/portfolio-repository';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { ALL_ROLES } from '@/lib/permissions';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(ALL_ROLES);
+    const user = await requireRole(ALL_ROLES);
     const month = request.nextUrl.searchParams.get('month');
-    const contractId = request.nextUrl.searchParams.get('contract') ?? request.nextUrl.searchParams.get('contractId');
+    const contractId = await resolveContractIdForUser(
+      request.nextUrl.searchParams.get('contract') ?? request.nextUrl.searchParams.get('contractId'),
+      user
+    );
     const report = await getSpvMonthlyReport(month, contractId);
 
     return NextResponse.json({

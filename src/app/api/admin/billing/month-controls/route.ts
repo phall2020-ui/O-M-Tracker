@@ -7,12 +7,16 @@ import {
   lockBillingMonth,
   unlockBillingMonth,
 } from '@/lib/billing-month-controls';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(['ADMIN', 'MANAGER']);
+    const user = await requireRole(['ADMIN', 'MANAGER']);
     const month = request.nextUrl.searchParams.get('month');
-    const contractId = request.nextUrl.searchParams.get('contract') ?? request.nextUrl.searchParams.get('contractId');
+    const contractId = await resolveContractIdForUser(
+      request.nextUrl.searchParams.get('contract') ?? request.nextUrl.searchParams.get('contractId'),
+      user
+    );
     const controls = await getBillingMonthControls(month, contractId);
     return NextResponse.json({ success: true, data: controls });
   } catch (error) {
@@ -29,12 +33,14 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole(['ADMIN', 'MANAGER']);
     const body = await request.json();
-    const contractId =
+    const contractId = await resolveContractIdForUser(
       request.nextUrl.searchParams.get('contract') ??
       request.nextUrl.searchParams.get('contractId') ??
       body.contract ??
       body.contractId ??
-      body.adjustment?.contractId;
+      body.adjustment?.contractId,
+      user
+    );
 
     if (body.action === 'lock') {
       await lockBillingMonth(body.month, body.note, user, contractId);

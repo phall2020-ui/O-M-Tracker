@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser, authErrorResponse } from '../../../../lib/authz';
 import { listSites } from '../../../../lib/portfolio-repository';
+import { resolveContractIdForUser } from '../../../../lib/contracts';
 import {
   DEFAULT_CUSTOM_EXPORT_FIELDS,
   normalizeCustomExportFields,
@@ -10,9 +11,9 @@ import {
 
 export async function GET(request: Request) {
   try {
-    await requireUser();
+    const user = await requireUser();
     const url = new URL(request.url);
-    const contractId = url.searchParams.get('contract');
+    const contractId = await resolveContractIdForUser(url.searchParams.get('contract'), user);
     const sites = await listSites({ sortBy: 'systemSizeKwp', sortOrder: 'asc', contractId });
     const mode = url.searchParams.get('mode');
     const date = new Date().toISOString().slice(0, 10);

@@ -6,6 +6,7 @@ export interface AppSessionUser {
   email?: string | null;
   name?: string | null;
   role: AppRole;
+  contractorIds: string[];
 }
 
 export async function getCurrentUser(): Promise<AppSessionUser | null> {
@@ -21,6 +22,7 @@ export async function getCurrentUser(): Promise<AppSessionUser | null> {
     email: user.email,
     name: user.name,
     role: user.role as AppRole,
+    contractorIds: user.contractorIds || [],
   };
 }
 

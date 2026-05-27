@@ -1,29 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET, POST } from './route';
 
-const { createContract, listContracts } = vi.hoisted(() => ({
+const { createContract, listContractsForUser } = vi.hoisted(() => ({
   createContract: vi.fn(),
-  listContracts: vi.fn(),
+  listContractsForUser: vi.fn(),
 }));
 
 vi.mock('@/lib/contracts', () => ({
   createContract,
-  listContracts,
+  listContractsForUser,
 }));
 
 vi.mock('@/lib/authz', () => ({
-  requireRole: vi.fn(async () => ({ id: 'admin-id', role: 'ADMIN' })),
+  requireUser: vi.fn(async () => ({ id: 'admin-id', role: 'ADMIN', contractorIds: [] })),
+  requireRole: vi.fn(async () => ({ id: 'admin-id', role: 'ADMIN', contractorIds: [] })),
   authErrorResponse: (error: unknown) => error instanceof Response ? error : null,
 }));
 
 describe('contracts API', () => {
   beforeEach(() => {
     createContract.mockReset();
-    listContracts.mockReset();
+    listContractsForUser.mockReset();
   });
 
   it('returns active contracts from the repository', async () => {
-    listContracts.mockResolvedValue([
+    listContractsForUser.mockResolvedValue([
       {
         id: 'contract-1',
         code: 'CLEARSOL_O_M',
@@ -54,7 +55,7 @@ describe('contracts API', () => {
   });
 
   it('returns a 500 response when contracts cannot be listed', async () => {
-    listContracts.mockRejectedValue(new Error('database unavailable'));
+    listContractsForUser.mockRejectedValue(new Error('database unavailable'));
 
     const response = await GET();
     const body = await response.json();

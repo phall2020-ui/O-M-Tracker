@@ -27,6 +27,7 @@ describe('role permissions', () => {
     expect(canAccessPath('CONTRACTOR', '/spvs')).toBe(true);
     expect(canAccessPath('CONTRACTOR', '/cmdays')).toBe(true);
     expect(canAccessPath('CONTRACTOR', '/contractor')).toBe(true);
+    expect(canAccessPath('CONTRACTOR', '/overview')).toBe(false);
     expect(canAccessPath('CONTRACTOR', '/import')).toBe(false);
     expect(canAccessPath('CONTRACTOR', '/admin')).toBe(false);
     expect(canAccessPath('CONTRACTOR', '/settings')).toBe(false);
@@ -49,5 +50,6 @@ describe('role permissions', () => {
     expect(canManageBilling('MANAGER')).toBe(true);
     expect(canManageAdmin('MANAGER')).toBe(false);
     expect(canAccessPath('MANAGER', '/settings')).toBe(false);
+    expect(canAccessPath('MANAGER', '/overview')).toBe(true);
   });
 });

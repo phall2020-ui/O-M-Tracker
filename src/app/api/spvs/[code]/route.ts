@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listSites, listSpvs } from '@/lib/portfolio-repository';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { ALL_ROLES } from '@/lib/permissions';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    await requireRole(ALL_ROLES);
+    const user = await requireRole(ALL_ROLES);
     const { code } = await params;
-    const contractId = request.nextUrl.searchParams.get('contract');
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract'), user);
     const spv = (await listSpvs(contractId)).find((item) => item.code === code);
     
     if (!spv) {

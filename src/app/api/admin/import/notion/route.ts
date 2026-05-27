@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { previewOrImportNotionSites } from '@/lib/notion-integration';
 import { authErrorResponse, requireRole } from '@/lib/authz';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRole(['ADMIN']);
     const body = await request.json();
     const databaseId = body.databaseId || process.env.NOTION_SITES_DATABASE_ID;
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
 
     if (!databaseId) {
       return NextResponse.json(

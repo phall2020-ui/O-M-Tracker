@@ -2,16 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { importSiteRecords } from '@/lib/portfolio-repository';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { loadClearsolWorkbook, parseClearsolWorkbook } from '@/lib/clearsol-import';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRole(['ADMIN', 'MANAGER']);
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const contractId =
+    const contractId = await resolveContractIdForUser(
       request.nextUrl.searchParams.get('contract') ??
       (formData.get('contract') as string | null) ??
-      (formData.get('contractId') as string | null);
+      (formData.get('contractId') as string | null),
+      user
+    );
     
     if (!file) {
       return NextResponse.json(

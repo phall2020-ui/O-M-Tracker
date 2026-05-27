@@ -5,6 +5,7 @@ export const OPERATIONAL_ROLES: AppRole[] = ['ADMIN', 'MANAGER'];
 
 const pageAccess: Array<{ path: string; exact?: boolean; roles: AppRole[] }> = [
   { path: '/', exact: true, roles: ALL_ROLES },
+  { path: '/overview', roles: OPERATIONAL_ROLES },
   { path: '/sites', roles: ALL_ROLES },
   { path: '/pipeline', roles: ALL_ROLES },
   { path: '/spvs', roles: ALL_ROLES },

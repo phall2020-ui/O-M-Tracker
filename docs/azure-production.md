@@ -34,9 +34,19 @@ CRON_SECRET=<strong random value for scheduled sync>
 10. Re-run `POST /api/admin/import/notion?contract=<contract-id>` with `{"commit": true}` only after the validation report has no errors.
 11. Configure an Azure Logic App, Automation job, or scheduled Function to call `GET /api/cron/notion-sync` daily with the `x-cron-secret` header.
 
+## Multi-Contractor Rollout
+This release adds contractor scoping tables and a cross-contractor overview. For an existing Azure SQL database, apply it in this order to avoid interrupting the live Container App:
+
+1. Apply the Prisma schema update to add `Contractor`, `UserContractorAccess`, and nullable `Contract.contractorId`.
+2. Run `npm run db:contractor-backfill` against Azure SQL to attach existing contracts to the default Clearsol contractor and grant existing `CONTRACTOR`/`VIEWER` users access.
+3. Verify `GET /api/health?deep=true` returns `200`.
+4. Deploy the new app image.
+5. Re-run the production smoke checks before adding additional contractor users.
+
 ## Operational Notes
 - Site CRUD and CM workflows should continue if Notion is unavailable.
 - Contractor users can submit CM work but cannot approve it or edit site commercial data.
+- Contractor and viewer users only see contracts attached to contractors they are assigned to; admins and managers retain the cross-contractor portfolio view.
 - Only approved CM entries count toward official usage and Notion summary sync.
 - New contracts are managed from `/settings`; deactivation preserves historical rows and does not delete data.
 - Contract-specific Notion summary page and billing database ids can be configured per contract. If left blank, the app falls back to the environment-level Notion ids.

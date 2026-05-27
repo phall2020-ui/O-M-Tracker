@@ -18,6 +18,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
+          include: {
+            contractorAccesses: {
+              select: { contractorId: true },
+            },
+          },
         });
 
         if (!user) {
@@ -38,6 +43,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          contractorIds: user.contractorAccesses.map((access) => access.contractorId),
         };
       },
     }),
@@ -47,6 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id || token.sub || '';
         token.role = user.role || 'VIEWER';
+        token.contractorIds = user.contractorIds || [];
       }
       return token;
     },
@@ -54,6 +61,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.contractorIds = token.contractorIds || [];
       }
       return session;
     },

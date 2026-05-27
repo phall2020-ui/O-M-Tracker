@@ -43,6 +43,14 @@ Defaults:
 
 Set `NOTION_TOKEN` before running if you want Notion import/sync live immediately.
 
+For the multi-contractor schema, update Azure SQL first and run:
+
+```bash
+npm run db:contractor-backfill
+```
+
+Only update the Container App image after `/api/health?deep=true` is healthy against the updated database.
+
 ## Notes
 - `DATABASE_URL` is built from the provisioned Azure SQL server and database.
 - The daily Logic App uses the `CRON_SECRET` value in the `x-cron-secret` header.

@@ -6,6 +6,9 @@ let currentUser: AppSessionUser | null = null;
 const { listSites } = vi.hoisted(() => ({
   listSites: vi.fn(),
 }));
+const { resolveContractIdForUser } = vi.hoisted(() => ({
+  resolveContractIdForUser: vi.fn(async (contractId: string | null | undefined) => contractId || 'contract-1'),
+}));
 
 vi.mock('../../../../lib/authz', () => ({
   requireUser: vi.fn(async () => {
@@ -21,9 +24,14 @@ vi.mock('../../../../lib/portfolio-repository', () => ({
   listSites,
 }));
 
+vi.mock('../../../../lib/contracts', () => ({
+  resolveContractIdForUser,
+}));
+
 describe('Excel export API', () => {
   beforeEach(() => {
     currentUser = null;
+    resolveContractIdForUser.mockClear();
     listSites.mockResolvedValue([
       {
         id: 'site-1',
@@ -64,7 +72,7 @@ describe('Excel export API', () => {
   });
 
   it.each(['ADMIN', 'MANAGER', 'CONTRACTOR', 'VIEWER'] as const)('allows %s to export the standard workbook', async (role) => {
-    currentUser = { id: `${role.toLowerCase()}-id`, email: `${role.toLowerCase()}@example.com`, name: role, role };
+    currentUser = { id: `${role.toLowerCase()}-id`, email: `${role.toLowerCase()}@example.com`, name: role, role, contractorIds: [] };
 
     const response = await GET(new Request('http://localhost/api/export/excel'));
 
@@ -75,7 +83,7 @@ describe('Excel export API', () => {
   });
 
   it('exports a custom workbook when fields are selected', async () => {
-    currentUser = { id: 'viewer-id', email: 'viewer@example.com', name: 'Viewer', role: 'VIEWER' };
+    currentUser = { id: 'viewer-id', email: 'viewer@example.com', name: 'Viewer', role: 'VIEWER', contractorIds: [] };
 
     const response = await GET(new Request('http://localhost/api/export/excel?mode=custom&fields=name,spvCode'));
 
@@ -85,7 +93,7 @@ describe('Excel export API', () => {
   });
 
   it('passes the selected contract to the export data loader', async () => {
-    currentUser = { id: 'viewer-id', email: 'viewer@example.com', name: 'Viewer', role: 'VIEWER' };
+    currentUser = { id: 'viewer-id', email: 'viewer@example.com', name: 'Viewer', role: 'VIEWER', contractorIds: ['contractor-1'] };
 
     const response = await GET(new Request('http://localhost/api/export/excel?contract=contract-2'));
 

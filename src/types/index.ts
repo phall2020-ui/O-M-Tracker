@@ -11,6 +11,7 @@ export interface Contract {
   description: string | null;
   notionSummaryPageId?: string | null;
   notionBillingDatabaseId?: string | null;
+  contractorId?: string | null;
   isDefault: boolean;
   isActive: boolean;
 }

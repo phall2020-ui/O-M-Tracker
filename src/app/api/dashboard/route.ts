@@ -6,6 +6,7 @@ import { currentMonth } from '@/lib/month-periods';
 import { listBillingSnapshots } from '@/lib/billing-repository';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { ALL_ROLES } from '@/lib/permissions';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 function authoritativeCapacitySources(
   summaries: Array<{ month: string; source: string; status: string; snapshotCount: number; systemSizeKwp: number }>
@@ -30,8 +31,8 @@ function authoritativeCapacitySources(
 
 export async function GET(request: NextRequest) {
   try {
-    await requireRole(ALL_ROLES);
-    const contractId = request.nextUrl.searchParams.get('contract');
+    const user = await requireRole(ALL_ROLES);
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract'), user);
     const [sitesWithCalcs, summary, spvSummaries, cmUsage, cmMonthlyUsage, billingSnapshots] = await Promise.all([
       listSites({ contractId }),
       getPortfolioSummary({ contractId }),

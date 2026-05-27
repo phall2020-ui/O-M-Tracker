@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reviewCmWork, serializeCmWork } from '@/lib/cm-work-repository';
 import { authErrorResponse, requireRole } from '@/lib/authz';
+import { resolveContractIdForUser } from '@/lib/contracts';
 
 export async function POST(
   request: NextRequest,
@@ -11,7 +12,7 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
     const status = body.status === 'REJECTED' ? 'REJECTED' : 'APPROVED';
-    const contractId = request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId;
+    const contractId = await resolveContractIdForUser(request.nextUrl.searchParams.get('contract') ?? body.contract ?? body.contractId, user);
     const entry = await reviewCmWork(id, status, body.reviewNote || null, user, contractId);
 
     if (!entry) {
