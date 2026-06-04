@@ -94,6 +94,64 @@ describe('portfolio calculations', () => {
     });
   });
 
+  it('exposes a verified pricing breakdown for contracted sites', () => {
+    const calculated = calculateSiteWithAllTiers(
+      site({ systemSizeKwp: 1_000 }),
+      DEFAULT_RATE_TIERS,
+      DEFAULT_RATE_TIERS[0],
+      null,
+      12_000
+    );
+
+    expect(calculated.pricingBreakdown).toMatchObject({
+      isBillable: true,
+      reviewStatus: 'VERIFIED',
+      reviewReason: 'Contracted site priced using active portfolio tier',
+      appliedTierName: '<20MW',
+      appliedTierRatePerKwp: 2,
+      contractedCapacityKwpForTier: 12_000,
+      siteFixedCostsAnnual: 200,
+      portfolioCostAnnual: 2_000,
+      additionalMonthlyAnnual: 0,
+      annualFee: 2_200,
+      monthlyFee: 2_200 / 12,
+    });
+    expect(calculated.pricingBreakdown.lines).toEqual([
+      expect.objectContaining({ label: 'PM cost', annualValue: 100 }),
+      expect.objectContaining({ label: 'CCTV cost', annualValue: 50 }),
+      expect.objectContaining({ label: 'Cleaning cost', annualValue: 50 }),
+      expect.objectContaining({ label: 'Additional annual cost', annualValue: 0 }),
+      expect.objectContaining({ label: 'Portfolio tariff', annualValue: 2_000 }),
+      expect.objectContaining({ label: 'Additional monthly cost', annualValue: 0 }),
+      expect.objectContaining({ label: 'Annual fee', annualValue: 2_200 }),
+      expect.objectContaining({ label: 'Monthly fee', annualValue: 2_200 / 12 }),
+    ]);
+  });
+
+  it('explains non-billable site pricing in the breakdown', () => {
+    const calculated = calculateSiteWithAllTiers(
+      site({ contractStatus: 'Awaiting Contract', systemSizeKwp: 1_000 }),
+      DEFAULT_RATE_TIERS,
+      DEFAULT_RATE_TIERS[0],
+      null,
+      12_000
+    );
+
+    expect(calculated.monthlyFee).toBe(0);
+    expect(calculated.pricingBreakdown).toMatchObject({
+      isBillable: false,
+      reviewStatus: 'NEEDS_REVIEW',
+      reviewReason: 'Not billable while contract status is Awaiting Contract',
+      portfolioCostAnnual: 0,
+      annualFee: 0,
+      monthlyFee: 0,
+    });
+    expect(calculated.pricingBreakdown.lines.find((line) => line.label === 'Portfolio tariff')).toMatchObject({
+      annualValue: 0,
+      note: 'Excluded because site is not contracted',
+    });
+  });
+
   it('applies additional monthly costs only inside the configured month range', () => {
     const customSite = site({
       systemSizeKwp: 1_000,
@@ -106,5 +164,7 @@ describe('portfolio calculations', () => {
     expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-05').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12 + 25, 2);
     expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-06').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12 + 25, 2);
     expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-07').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12, 2);
+    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-05').pricingBreakdown.additionalMonthlyAnnual).toBe(300);
+    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-07').pricingBreakdown.additionalMonthlyAnnual).toBe(0);
   });
 });

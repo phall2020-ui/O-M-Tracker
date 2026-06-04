@@ -543,6 +543,112 @@ textarea {
   text-align: right;
 }
 
+.pricing-verification-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-1);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.pricing-verification-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.pricing-verification-header p {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.pricing-verification-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pricing-status-verified,
+.pricing-status-review {
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 9px;
+}
+
+.pricing-status-verified {
+  background: var(--green-soft);
+  color: var(--green-strong);
+}
+
+.pricing-status-review {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.pricing-verification-summary {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+
+.pricing-verification-summary div {
+  border-right: 1px solid var(--border);
+  padding: 14px 20px;
+}
+
+.pricing-verification-summary div:last-child {
+  border-right: 0;
+}
+
+.pricing-verification-summary span {
+  color: var(--text-muted);
+  display: block;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.pricing-verification-summary strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.pricing-formula {
+  align-items: center;
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  padding: 12px 20px;
+}
+
+.pricing-breakdown-table {
+  overflow-x: auto;
+}
+
+.pricing-breakdown-table th,
+.pricing-breakdown-table td {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.pricing-breakdown-table td small {
+  color: var(--text-muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
 /* Badge */
 .badge {
   padding: 4px 10px;
@@ -2229,6 +2335,79 @@ tr:hover td {
   .detail-row small {
     grid-column: auto;
     text-align: left;
+  }
+  .pricing-verification-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .pricing-verification-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    justify-content: stretch;
+  }
+  .pricing-status-verified,
+  .pricing-status-review,
+  .pricing-verification-actions .status-badge {
+    text-align: center;
+  }
+  .pricing-verification-summary {
+    grid-template-columns: 1fr;
+  }
+  .pricing-verification-summary div {
+    border-bottom: 1px solid var(--border);
+    border-right: 0;
+  }
+  .pricing-verification-summary div:last-child {
+    border-bottom: 0;
+  }
+  .pricing-formula {
+    align-items: flex-start;
+  }
+  .pricing-breakdown-table thead {
+    display: none;
+  }
+  .pricing-breakdown-table table,
+  .pricing-breakdown-table tbody,
+  .pricing-breakdown-table tr,
+  .pricing-breakdown-table td {
+    display: block;
+    width: 100%;
+  }
+  .pricing-breakdown-table tr {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 20px;
+  }
+  .pricing-breakdown-table tr:last-child {
+    border-bottom: 0;
+  }
+  .pricing-breakdown-table td {
+    align-items: baseline;
+    border-bottom: 1px solid rgba(16, 19, 40, 0.08);
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 8px 0;
+    text-align: right;
+  }
+  .pricing-breakdown-table td:last-child {
+    border-bottom: 0;
+  }
+  .pricing-breakdown-table td::before {
+    color: var(--text-muted);
+    content: attr(data-label);
+    flex: 0 0 38%;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .pricing-breakdown-table td:first-child {
+    align-items: flex-start;
+  }
+  .pricing-breakdown-table td:first-child strong,
+  .pricing-breakdown-table td:first-child small {
+    text-align: right;
   }
   .site-form-fields.two-col,
   .site-form-fields.three-col {

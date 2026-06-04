@@ -9,19 +9,19 @@ const PORTFOLIO_HEADERS = [
   'Contract Status',
   'Forecast PAC Date',
   'Onboard Date',
-  'PM Cost (£/yr)',
+  'PM Cost (GBP/year)',
   'PM Days / Annum',
   'PM Visits per Annum',
-  'CCTV Cost (£/yr)',
-  'Cleaning Cost (£/yr)',
-  'Additional Base Cost (£/yr)',
-  'Additional Monthly Cost (£/mo)',
-  'Site Fixed Costs (£/yr)',
-  'Variable Rate (£/kWp)',
-  'Variable Cost (£/yr)',
-  'Total Annual Fee (£)',
-  'Monthly Fee (£)',
-  'Unit Cost (£/kWp)',
+  'CCTV Cost (GBP/year)',
+  'Cleaning Cost (GBP/year)',
+  'Additional Base Cost (GBP/year)',
+  'Additional Monthly Cost (GBP/month)',
+  'Site Fixed Costs (GBP/year)',
+  'Variable Rate (GBP/kWp)',
+  'Variable Cost (GBP/year)',
+  'Total Annual Fee (GBP/year)',
+  'Monthly Fee (GBP/month)',
+  'Unit Cost (GBP/kWp/year)',
   'PM Frequency',
   'Monitored By',
   'Notes',
@@ -106,23 +106,23 @@ export const CUSTOM_EXPORT_FIELDS: CustomExportField[] = [
   { key: 'billingPortfolio', label: 'Billing Portfolio', width: 18, value: (row) => row.site.billingPortfolio === 'EDEN' ? 'Eden' : 'Core' },
   { key: 'forecastPacDate', label: 'Forecast PAC Date', width: 18, format: 'date', value: (row) => dateValue(row.site.forecastPacDate) },
   { key: 'onboardDate', label: 'Onboard Date', width: 15, format: 'date', value: (row) => dateValue(row.site.onboardDate) },
-  { key: 'pmCost', label: 'PM Cost (£/yr)', width: 16, format: 'money', value: (row) => money(row.site.pmCost) },
+  { key: 'pmCost', label: 'PM Cost (GBP/year)', width: 20, format: 'money', value: (row) => money(row.site.pmCost) },
   { key: 'pmDaysOnSite', label: 'PM Days / Annum', width: 18, format: 'number', value: (row) => row.site.pmDaysOnSite || 0 },
   { key: 'pmVisitsPerAnnum', label: 'PM Visits per Annum', width: 20, format: 'number', value: (row) => row.site.pmVisitsPerAnnum || '' },
-  { key: 'cctvCost', label: 'CCTV Cost (£/yr)', width: 18, format: 'money', value: (row) => money(row.site.cctvCost) },
-  { key: 'cleaningCost', label: 'Cleaning Cost (£/yr)', width: 20, format: 'money', value: (row) => money(row.site.cleaningCost) },
-  { key: 'additionalCostAnnual', label: 'Additional Base Cost (£/yr)', width: 26, format: 'money', value: (row) => money(row.site.additionalCostAnnual || 0) },
+  { key: 'cctvCost', label: 'CCTV Cost (GBP/year)', width: 22, format: 'money', value: (row) => money(row.site.cctvCost) },
+  { key: 'cleaningCost', label: 'Cleaning Cost (GBP/year)', width: 24, format: 'money', value: (row) => money(row.site.cleaningCost) },
+  { key: 'additionalCostAnnual', label: 'Additional Base Cost (GBP/year)', width: 32, format: 'money', value: (row) => money(row.site.additionalCostAnnual || 0) },
   { key: 'additionalCostAnnualComment', label: 'Additional Base Cost Comment', width: 32, value: (row) => row.site.additionalCostAnnualComment || '' },
-  { key: 'additionalCostMonthly', label: 'Additional Monthly Cost (£/mo)', width: 28, format: 'money', value: (row) => money(row.site.additionalCostMonthly || 0) },
+  { key: 'additionalCostMonthly', label: 'Additional Monthly Cost (GBP/month)', width: 36, format: 'money', value: (row) => money(row.site.additionalCostMonthly || 0) },
   { key: 'additionalCostMonthlyComment', label: 'Additional Monthly Cost Comment', width: 34, value: (row) => row.site.additionalCostMonthlyComment || '' },
   { key: 'additionalCostMonthlyStartMonth', label: 'Monthly Cost From', width: 18, value: (row) => row.site.additionalCostMonthlyStartMonth || '' },
   { key: 'additionalCostMonthlyEndMonth', label: 'Monthly Cost To', width: 18, value: (row) => row.site.additionalCostMonthlyEndMonth || '' },
-  { key: 'siteFixedCosts', label: 'Site Fixed Costs (£/yr)', width: 22, format: 'money', value: (row) => money(row.siteFixedCosts) },
-  { key: 'variableRate', label: 'Variable Rate (£/kWp)', width: 22, format: 'number', value: (row) => row.variableRate },
-  { key: 'variableCost', label: 'Variable Cost (£/yr)', width: 22, format: 'money', value: (row) => money(row.variableCost) },
-  { key: 'annualFee', label: 'Total Annual Fee (£)', width: 20, format: 'money', value: (row) => money(row.annualFee) },
-  { key: 'monthlyFee', label: 'Monthly Fee (£)', width: 18, format: 'money', value: (row) => money(row.monthlyFee) },
-  { key: 'unitCost', label: 'Unit Cost (£/kWp)', width: 20, format: 'money', value: (row) => money(row.unitCost) },
+  { key: 'siteFixedCosts', label: 'Site Fixed Costs (GBP/year)', width: 28, format: 'money', value: (row) => money(row.siteFixedCosts) },
+  { key: 'variableRate', label: 'Variable Rate (GBP/kWp)', width: 26, format: 'money', value: (row) => row.variableRate },
+  { key: 'variableCost', label: 'Variable Cost (GBP/year)', width: 28, format: 'money', value: (row) => money(row.variableCost) },
+  { key: 'annualFee', label: 'Total Annual Fee (GBP/year)', width: 30, format: 'money', value: (row) => money(row.annualFee) },
+  { key: 'monthlyFee', label: 'Monthly Fee (GBP/month)', width: 28, format: 'money', value: (row) => money(row.monthlyFee) },
+  { key: 'unitCost', label: 'Unit Cost (GBP/kWp/year)', width: 30, format: 'money', value: (row) => money(row.unitCost) },
   { key: 'pmFrequency', label: 'PM Frequency', width: 18, value: (row) => row.pmFrequency },
   { key: 'monitoredBy', label: 'Monitored By', width: 18, value: (row) => row.monitoredBy },
   { key: 'sourceSheet', label: 'Source Sheet', width: 18, value: (row) => row.site.sourceSheet || '' },
@@ -305,26 +305,26 @@ export function buildClearsolExportWorkbook(sites: SiteWithCalculations[]): Exce
       ['', 'Small Sites Capacity (kWp)', money(smallCapacity)],
       ['', 'Standard Sites Capacity (kWp)', money(standardCapacity)],
       [],
-      ['', 'Total Annual O&M Cost (£)', money(totalAnnual)],
-      ['', 'Average Unit Cost (£/kWp)', totalCapacity > 0 ? money(totalAnnual / totalCapacity) : 0],
+      ['', 'Total Annual O&M Cost (GBP/year)', money(totalAnnual)],
+      ['', 'Average Unit Cost (GBP/kWp/year)', totalCapacity > 0 ? money(totalAnnual / totalCapacity) : 0],
     ],
     [8, 35, 18, 18, 22]
   );
 
   addSheet(workbook, 'Portfolio Tracker', [PORTFOLIO_HEADERS, ...exportRows.map(portfolioRow)], [
-    28, 20, 12, 18, 15, 17, 19, 23, 26, 24, 23, 23, 18, 23, 16, 15, 30,
+    30, 18, 12, 18, 18, 15, 20, 18, 20, 22, 24, 32, 36, 28, 26, 28, 30, 28, 30, 18, 18, 30,
   ]);
   addSheet(workbook, 'Small Sites Framework', [SMALL_HEADERS, ...smallRows.map(smallRow)], [
-    28, 20, 12, 18, 15, 17, 19, 23, 26, 24, 23, 23, 18, 23, 16, 15, 28, 23, 15, 14, 14, 30,
+    30, 18, 12, 18, 18, 15, 20, 18, 20, 22, 24, 32, 36, 28, 26, 28, 30, 28, 24, 22, 16, 16, 18, 30,
   ]);
   addSheet(workbook, 'Standard Sites', [STANDARD_HEADERS, ...standardRows.map(standardRow)], [
-    22, 20, 12, 18, 15, 17, 19, 23, 26, 24, 23, 23, 18, 23, 15, 15, 15, 14, 30,
+    30, 18, 12, 18, 18, 15, 20, 18, 20, 22, 24, 32, 36, 28, 26, 28, 30, 28, 16, 16, 30,
   ]);
 
   setSheetFormats(workbook, 'Overview', 14, ['C'], ['E'], []);
-  setSheetFormats(workbook, 'Portfolio Tracker', exportRows.length + 1, ['F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O'], ['E']);
-  setSheetFormats(workbook, 'Small Sites Framework', smallRows.length + 1, ['F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O'], ['E', 'S', 'T']);
-  setSheetFormats(workbook, 'Standard Sites', standardRows.length + 1, ['F', 'G', 'H', 'I', 'J', 'K', 'M', 'N', 'O'], ['E', 'Q', 'R']);
+  setSheetFormats(workbook, 'Portfolio Tracker', exportRows.length + 1, ['G', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S'], ['E', 'F'], ['B', 'H', 'I']);
+  setSheetFormats(workbook, 'Small Sites Framework', smallRows.length + 1, ['G', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'], ['E', 'F', 'U', 'V'], ['B', 'H', 'I']);
+  setSheetFormats(workbook, 'Standard Sites', standardRows.length + 1, ['G', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'], ['E', 'F', 'S', 'T'], ['B', 'H', 'I']);
 
   return workbook;
 }

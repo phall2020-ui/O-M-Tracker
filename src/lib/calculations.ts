@@ -1,4 +1,4 @@
-import { BillingPortfolioBreakdown, BillingPortfolioCode, Site, SiteWithCalculations, RateTier, PortfolioSummary } from '@/types';
+import { BillingPortfolioBreakdown, BillingPortfolioCode, Site, SiteWithCalculations, RateTier, PortfolioSummary, SitePricingBreakdown } from '@/types';
 
 // Default rate tiers matching the spreadsheet
 export const DEFAULT_RATE_TIERS: RateTier[] = [
@@ -109,11 +109,95 @@ function calculateAdditionalMonthlyAnnual(site: Site, month?: string | null): nu
   return isAdditionalMonthlyCostActive(site, month) ? (site.additionalCostMonthly || 0) * 12 : 0;
 }
 
+export function buildSitePricingBreakdown(
+  site: Site,
+  appliedTier: RateTier,
+  contractedCapacityKwpForTier: number,
+  month?: string | null
+): SitePricingBreakdown {
+  const isBillable = isContractedStatus(site.contractStatus);
+  const siteFixedCostsAnnual = calculateSiteFixedCosts(site);
+  const billablePortfolioCostAnnual = calculatePortfolioCost(site.systemSizeKwp, appliedTier.ratePerKwp);
+  const billableAdditionalMonthlyAnnual = calculateAdditionalMonthlyAnnual(site, month);
+  const portfolioCostAnnual = isBillable ? billablePortfolioCostAnnual : 0;
+  const additionalMonthlyAnnual = isBillable ? billableAdditionalMonthlyAnnual : 0;
+  const annualFee = isBillable ? calculateAnnualFeeForTierForMonth(site, appliedTier, month) : 0;
+  const monthlyFee = isBillable ? calculateMonthlyFee(annualFee) : 0;
+  const nonBillableNote = isBillable ? null : 'Excluded because site is not contracted';
+
+  return {
+    isBillable,
+    reviewStatus: isBillable ? 'VERIFIED' : 'NEEDS_REVIEW',
+    reviewReason: isBillable
+      ? 'Contracted site priced using active portfolio tier'
+      : `Not billable while contract status is ${site.contractStatus}`,
+    appliedTierName: appliedTier.tierName,
+    appliedTierRatePerKwp: appliedTier.ratePerKwp,
+    contractedCapacityKwpForTier,
+    siteFixedCostsAnnual,
+    portfolioCostAnnual,
+    additionalMonthlyAnnual,
+    annualFee,
+    monthlyFee,
+    formula: '(site fixed costs + capacity x rate + active monthly extras x 12) / 12',
+    lines: [
+      {
+        label: 'PM cost',
+        calculation: 'Imported fixed cost',
+        annualValue: site.pmCost,
+      },
+      {
+        label: 'CCTV cost',
+        calculation: 'Imported fixed cost',
+        annualValue: site.cctvCost,
+      },
+      {
+        label: 'Cleaning cost',
+        calculation: 'Imported fixed cost',
+        annualValue: site.cleaningCost,
+      },
+      {
+        label: 'Additional annual cost',
+        calculation: 'Imported fixed cost',
+        annualValue: site.additionalCostAnnual || 0,
+        note: site.additionalCostAnnualComment,
+      },
+      {
+        label: 'Portfolio tariff',
+        calculation: `${formatNumber(site.systemSizeKwp, 0)} kWp x ${formatCurrency(appliedTier.ratePerKwp)}/kWp`,
+        annualValue: portfolioCostAnnual,
+        note: nonBillableNote,
+      },
+      {
+        label: 'Additional monthly cost',
+        calculation: `${formatCurrency(site.additionalCostMonthly || 0)} x 12`,
+        annualValue: additionalMonthlyAnnual,
+        note: isBillable
+          ? site.additionalCostMonthlyComment
+          : nonBillableNote,
+      },
+      {
+        label: 'Annual fee',
+        calculation: 'Sum above',
+        annualValue: annualFee,
+        note: nonBillableNote,
+      },
+      {
+        label: 'Monthly fee',
+        calculation: `${formatCurrency(annualFee)} / 12`,
+        annualValue: monthlyFee,
+        note: nonBillableNote,
+      },
+    ],
+  };
+}
+
 export function calculateSiteWithAllTiers(
   site: Site,
   tiers: RateTier[] = DEFAULT_RATE_TIERS,
   appliedTier?: RateTier,
-  month?: string | null
+  month?: string | null,
+  contractedCapacityKwpForTier?: number
 ): SiteWithCalculations {
   const siteFixedCosts = calculateSiteFixedCosts(site);
   const isContracted = isContractedStatus(site.contractStatus);
@@ -153,6 +237,7 @@ export function calculateSiteWithAllTiers(
     feePerKwp_30MW,
     feePerKwp_40MW,
     monthlyFee,
+    pricingBreakdown: buildSitePricingBreakdown(site, selectedTier, contractedCapacityKwpForTier ?? 0, month),
   };
 }
 

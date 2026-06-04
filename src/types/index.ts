@@ -66,6 +66,29 @@ export interface Site {
   updatedAt: string;
 }
 
+export interface SitePricingBreakdownLine {
+  label: string;
+  calculation: string;
+  annualValue: number;
+  note?: string | null;
+}
+
+export interface SitePricingBreakdown {
+  isBillable: boolean;
+  reviewStatus: 'VERIFIED' | 'NEEDS_REVIEW';
+  reviewReason: string;
+  appliedTierName: string;
+  appliedTierRatePerKwp: number;
+  contractedCapacityKwpForTier: number;
+  siteFixedCostsAnnual: number;
+  portfolioCostAnnual: number;
+  additionalMonthlyAnnual: number;
+  annualFee: number;
+  monthlyFee: number;
+  formula: string;
+  lines: SitePricingBreakdownLine[];
+}
+
 export interface SiteWithCalculations extends Site {
   // Site fixed costs
   siteFixedCosts: number;
@@ -87,6 +110,9 @@ export interface SiteWithCalculations extends Site {
   
   // Monthly fee (based on current portfolio tier)
   monthlyFee: number;
+
+  // Transparent O&M pricing verification build-up
+  pricingBreakdown: SitePricingBreakdown;
 }
 
 export interface PortfolioSummary {

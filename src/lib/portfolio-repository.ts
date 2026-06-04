@@ -1,10 +1,12 @@
 import prisma from './prisma';
 import { Prisma } from '@prisma/client';
 import {
+  contractedCapacityForTier,
   calculatePortfolioSummary,
   calculateSiteWithAllTiers,
   currentPortfolioTier,
   DEFAULT_RATE_TIERS,
+  determinePortfolioTier,
 } from './calculations';
 import { BillingPortfolioCode, RateTier, Site, SiteFormData, SiteWithCalculations } from '@/types';
 import { AppSessionUser } from './authz';
@@ -154,7 +156,9 @@ export async function getSite(id: string, contractIdInput?: string | null): Prom
   ]);
   if (!site) return null;
   const mappedSites = allSites.map(mapPrismaSite);
-  return calculateSiteWithAllTiers(mapPrismaSite(site), tiers, currentPortfolioTier(mappedSites, tiers));
+  const contractedCapacityKwpForTier = contractedCapacityForTier(mappedSites);
+  const appliedTier = determinePortfolioTier(contractedCapacityKwpForTier / 1000, tiers);
+  return calculateSiteWithAllTiers(mapPrismaSite(site), tiers, appliedTier, null, contractedCapacityKwpForTier);
 }
 
 async function refreshUnlockedAppGeneratedSnapshotsForSite(siteId: string) {

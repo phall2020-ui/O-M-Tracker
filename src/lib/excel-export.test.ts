@@ -85,23 +85,37 @@ describe('Clearsol Excel export', () => {
       'Contract Status',
       'Forecast PAC Date',
       'Onboard Date',
-      'PM Cost (£/yr)',
+      'PM Cost (GBP/year)',
       'PM Days / Annum',
       'PM Visits per Annum',
-      'CCTV Cost (£/yr)',
-      'Cleaning Cost (£/yr)',
-      'Additional Base Cost (£/yr)',
-      'Additional Monthly Cost (£/mo)',
-      'Site Fixed Costs (£/yr)',
-      'Variable Rate (£/kWp)',
-      'Variable Cost (£/yr)',
-      'Total Annual Fee (£)',
-      'Monthly Fee (£)',
-      'Unit Cost (£/kWp)',
+      'CCTV Cost (GBP/year)',
+      'Cleaning Cost (GBP/year)',
+      'Additional Base Cost (GBP/year)',
+      'Additional Monthly Cost (GBP/month)',
+      'Site Fixed Costs (GBP/year)',
+      'Variable Rate (GBP/kWp)',
+      'Variable Cost (GBP/year)',
+      'Total Annual Fee (GBP/year)',
+      'Monthly Fee (GBP/month)',
+      'Unit Cost (GBP/kWp/year)',
       'PM Frequency',
       'Monitored By',
       'Notes',
     ]);
+  });
+
+  it('formats GBP fields with currency number formats', async () => {
+    const workbook = await readExportedWorkbook([
+      site({ id: 'standard', name: 'Standard Site', systemSizeKwp: 300, spvCode: 'OS2' }),
+    ]);
+    const tracker = workbook.getWorksheet('Portfolio Tracker');
+
+    expect(tracker?.getCell('G2').numFmt).toBe('£#,##0.00');
+    expect(tracker?.getCell('O2').numFmt).toBe('£#,##0.00');
+    expect(tracker?.getCell('Q2').numFmt).toBe('£#,##0.00');
+    expect(tracker?.getCell('R2').numFmt).toBe('£#,##0.00');
+    expect(tracker?.getCell('B2').numFmt).toBe('#,##0.00');
+    expect(tracker?.getCell('H2').numFmt).toBe('#,##0.00');
   });
 
   it('exports custom additional base and monthly costs', async () => {
@@ -155,7 +169,7 @@ describe('Clearsol Excel export', () => {
       'SPV',
       'PM Days / Annum',
       'PM Visits per Annum',
-      'Monthly Fee (£)',
+      'Monthly Fee (GBP/month)',
     ]);
     expect(rowValues(workbook, 'Custom Site Export', 2)).toEqual([
       'Custom Export Site',

@@ -9,10 +9,12 @@ import { formatCurrency, formatNumber } from '@/lib/calculations';
 import {
   ArrowLeft,
   Building2,
+  Calculator,
   FileText,
   Landmark,
   Pencil,
   PoundSterling,
+  ShieldCheck,
   Trash2,
   Wrench,
   Zap,
@@ -59,6 +61,78 @@ function DetailRow({ label, value, note }: { label: string; value: React.ReactNo
       <span>{label}</span>
       <strong>{value}</strong>
       {note ? <small>{note}</small> : null}
+    </div>
+  );
+}
+
+function PricingVerificationCard({ site }: { site: SiteWithCalculations }) {
+  const breakdown = site.pricingBreakdown;
+  const statusClass = breakdown.reviewStatus === 'VERIFIED' ? 'pricing-status-verified' : 'pricing-status-review';
+  const statusLabel = breakdown.reviewStatus === 'VERIFIED' ? 'Verified' : 'Needs review';
+
+  return (
+    <div className="pricing-verification-card">
+      <div className="pricing-verification-header">
+        <div>
+          <div className="chart-title">
+            <ShieldCheck className="h-5 w-5" />
+            Pricing Verification
+          </div>
+          <p>{breakdown.reviewReason}</p>
+        </div>
+        <div className="pricing-verification-actions">
+          <span className={statusClass}>{statusLabel}</span>
+          <span className="status-badge status-yes">{formatCurrency(breakdown.monthlyFee)}/month</span>
+        </div>
+      </div>
+
+      <div className="pricing-verification-summary">
+        <div>
+          <span>Applied tier</span>
+          <strong>{breakdown.appliedTierName}</strong>
+        </div>
+        <div>
+          <span>Tier capacity basis</span>
+          <strong>{formatNumber(breakdown.contractedCapacityKwpForTier / 1000, 2)} MW</strong>
+        </div>
+        <div>
+          <span>Rate applied</span>
+          <strong>{formatCurrency(breakdown.appliedTierRatePerKwp)}/kWp</strong>
+        </div>
+        <div>
+          <span>Annual fee</span>
+          <strong>{formatCurrency(breakdown.annualFee)}</strong>
+        </div>
+      </div>
+
+      <div className="pricing-formula">
+        <Calculator className="h-4 w-4" />
+        <span>{breakdown.formula}</span>
+      </div>
+
+      <div className="pricing-breakdown-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Calculation</th>
+              <th className="numeric">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {breakdown.lines.map((line) => (
+              <tr key={line.label}>
+                <td data-label="Component">
+                  <strong>{line.label}</strong>
+                  {line.note ? <small>{line.note}</small> : null}
+                </td>
+                <td data-label="Calculation">{line.calculation}</td>
+                <td data-label="Value" className="numeric strong">{formatCurrency(line.annualValue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -200,6 +274,8 @@ function SiteDetailContent() {
     );
   }
 
+  const scenarioAdditionalMonthlyAnnual = Math.max(site.fixedFee_20MW - site.siteFixedCosts - site.portfolioCost_20MW, 0);
+
   return (
     <div className="main-content">
       <div className="page-header">
@@ -261,6 +337,8 @@ function SiteDetailContent() {
           />
         </div>
 
+        <PricingVerificationCard site={site} />
+
         <div className="detail-grid">
           <div className="chart-card">
             <div className="chart-header">
@@ -321,8 +399,8 @@ function SiteDetailContent() {
         <div className="monthly-table-card" style={{ marginTop: '24px' }}>
           <div className="monthly-table-header">
             <div>
-              <h2>Fee Calculations by Portfolio Tier</h2>
-              <p>Annual portfolio cost, fixed fee, and unit rate for this site.</p>
+              <h2>Scenario Pricing by Portfolio Tier</h2>
+              <p>Full annual build-up by tier. The applied tier is shown in Pricing Verification above.</p>
             </div>
             <span className="status-badge status-yes">
               {formatCurrency(site.monthlyFee)}/month
@@ -340,16 +418,58 @@ function SiteDetailContent() {
               </thead>
               <tbody>
                 <tr>
-                  <td data-label="Metric">Portfolio Cost</td>
+                  <td data-label="Metric">PM cost</td>
+                  <td data-label="<20MW" className="numeric">{formatCurrency(site.pmCost)}</td>
+                  <td data-label="20-30MW" className="numeric">{formatCurrency(site.pmCost)}</td>
+                  <td data-label="30-40MW" className="numeric">{formatCurrency(site.pmCost)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">CCTV cost</td>
+                  <td data-label="<20MW" className="numeric">{formatCurrency(site.cctvCost)}</td>
+                  <td data-label="20-30MW" className="numeric">{formatCurrency(site.cctvCost)}</td>
+                  <td data-label="30-40MW" className="numeric">{formatCurrency(site.cctvCost)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">Cleaning cost</td>
+                  <td data-label="<20MW" className="numeric">{formatCurrency(site.cleaningCost)}</td>
+                  <td data-label="20-30MW" className="numeric">{formatCurrency(site.cleaningCost)}</td>
+                  <td data-label="30-40MW" className="numeric">{formatCurrency(site.cleaningCost)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">Additional annual cost</td>
+                  <td data-label="<20MW" className="numeric">{formatCurrency(site.additionalCostAnnual)}</td>
+                  <td data-label="20-30MW" className="numeric">{formatCurrency(site.additionalCostAnnual)}</td>
+                  <td data-label="30-40MW" className="numeric">{formatCurrency(site.additionalCostAnnual)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">Site fixed cost subtotal</td>
+                  <td data-label="<20MW" className="numeric strong">{formatCurrency(site.siteFixedCosts)}</td>
+                  <td data-label="20-30MW" className="numeric strong">{formatCurrency(site.siteFixedCosts)}</td>
+                  <td data-label="30-40MW" className="numeric strong">{formatCurrency(site.siteFixedCosts)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">Portfolio tariff cost</td>
                   <td data-label="<20MW" className="numeric">{formatCurrency(site.portfolioCost_20MW)}</td>
                   <td data-label="20-30MW" className="numeric">{formatCurrency(site.portfolioCost_30MW)}</td>
                   <td data-label="30-40MW" className="numeric">{formatCurrency(site.portfolioCost_40MW)}</td>
                 </tr>
                 <tr>
-                  <td data-label="Metric">Fixed Fee</td>
+                  <td data-label="Metric">Additional monthly cost annualised</td>
+                  <td data-label="<20MW" className="numeric">{formatCurrency(scenarioAdditionalMonthlyAnnual)}</td>
+                  <td data-label="20-30MW" className="numeric">{formatCurrency(scenarioAdditionalMonthlyAnnual)}</td>
+                  <td data-label="30-40MW" className="numeric">{formatCurrency(scenarioAdditionalMonthlyAnnual)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">Total site cost</td>
                   <td data-label="<20MW" className="numeric strong">{formatCurrency(site.fixedFee_20MW)}</td>
                   <td data-label="20-30MW" className="numeric strong">{formatCurrency(site.fixedFee_30MW)}</td>
                   <td data-label="30-40MW" className="numeric strong">{formatCurrency(site.fixedFee_40MW)}</td>
+                </tr>
+                <tr>
+                  <td data-label="Metric">Monthly fee</td>
+                  <td data-label="<20MW" className="numeric">{formatCurrency(site.fixedFee_20MW / 12)}</td>
+                  <td data-label="20-30MW" className="numeric">{formatCurrency(site.fixedFee_30MW / 12)}</td>
+                  <td data-label="30-40MW" className="numeric">{formatCurrency(site.fixedFee_40MW / 12)}</td>
                 </tr>
                 <tr>
                   <td data-label="Metric">Fee per kWp</td>
