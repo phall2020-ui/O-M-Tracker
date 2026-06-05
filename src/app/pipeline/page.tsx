@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Clock, FileText, Plus, Search, Zap } from 'lucide-react';
+import { Clock, Download, FileText, Plus, Search, Zap } from 'lucide-react';
 import { SiteFormData, SiteWithCalculations, SPV } from '@/types';
 import { formatCurrency, formatNumber } from '@/lib/calculations';
 import { canEditSites, useCurrentUser } from '@/lib/use-current-user';
@@ -248,6 +248,14 @@ function PipelineContent() {
   const assignedCount = filteredSites.filter((site) => Boolean(site.spvCode)).length;
   const portfolioCount = new Set(filteredSites.map((site) => site.billingPortfolio)).size;
 
+  const exportPipelineBuildUp = () => {
+    const params = new URLSearchParams({
+      scope: 'pipeline',
+      mode: 'cost-build-up',
+    });
+    window.location.href = withContract(`/api/export/excel?${params.toString()}`);
+  };
+
   if (isLoading) {
     return (
       <div className="main-content flex items-center justify-center" style={{ height: '100vh' }}>
@@ -320,12 +328,18 @@ function PipelineContent() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          {allowSiteEdits && (
-            <Link href={withContract('/sites/new')} className="primary-action">
-              <Plus className="h-4 w-4" />
-              Add Pipeline Site
-            </Link>
-          )}
+          <div className="button-row">
+            <button type="button" className="secondary-action" onClick={exportPipelineBuildUp}>
+              <Download className="h-4 w-4" />
+              Export Cost Build-up
+            </button>
+            {allowSiteEdits && (
+              <Link href={withContract('/sites/new')} className="primary-action">
+                <Plus className="h-4 w-4" />
+                Add Pipeline Site
+              </Link>
+            )}
+          </div>
         </div>
 
         <div className="chart-card sites-edit-card">

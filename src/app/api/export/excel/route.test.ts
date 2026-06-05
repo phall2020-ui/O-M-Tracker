@@ -92,6 +92,16 @@ describe('Excel export API', () => {
     expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0);
   });
 
+  it('exports the pipeline cost build-up workbook', async () => {
+    currentUser = { id: 'contractor-id', email: 'contractor@example.com', name: 'Contractor', role: 'CONTRACTOR', contractorIds: ['contractor-1'] };
+
+    const response = await GET(new Request('http://localhost/api/export/excel?scope=pipeline&mode=cost-build-up'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Disposition')).toContain('clearsol-pipeline-cost-build-up-');
+    expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
   it('passes the selected contract to the export data loader', async () => {
     currentUser = { id: 'viewer-id', email: 'viewer@example.com', name: 'Viewer', role: 'VIEWER', contractorIds: ['contractor-1'] };
 

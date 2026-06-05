@@ -117,7 +117,7 @@ describe('portfolio calculations', () => {
       monthlyFee: 2_200 / 12,
     });
     expect(calculated.pricingBreakdown.lines).toEqual([
-      expect.objectContaining({ label: 'PM cost', annualValue: 100 }),
+      expect.objectContaining({ label: 'PM cost', calculation: '0 PM days/year = £100.00/year', annualValue: 100 }),
       expect.objectContaining({ label: 'CCTV cost', annualValue: 50 }),
       expect.objectContaining({ label: 'Cleaning cost', annualValue: 50 }),
       expect.objectContaining({ label: 'Additional annual cost', annualValue: 0 }),
@@ -126,6 +126,20 @@ describe('portfolio calculations', () => {
       expect.objectContaining({ label: 'Annual fee', annualValue: 2_200 }),
       expect.objectContaining({ label: 'Monthly fee', annualValue: 2_200 / 12 }),
     ]);
+  });
+
+  it('shows PM cost as a days-per-year build-up in pricing verification', () => {
+    const calculated = calculateSiteWithAllTiers(
+      site({ systemSizeKwp: 1_000, pmCost: 1450, pmDaysOnSite: 1.5, pmVisitsPerAnnum: 2 }),
+      DEFAULT_RATE_TIERS,
+      DEFAULT_RATE_TIERS[0]
+    );
+
+    expect(calculated.pricingBreakdown.lines.find((line) => line.label === 'PM cost')).toMatchObject({
+      calculation: '1.5 PM days/year = £1,450.00/year',
+      note: '2 visits/year',
+      annualValue: 1450,
+    });
   });
 
   it('explains non-billable site pricing in the breakdown', () => {

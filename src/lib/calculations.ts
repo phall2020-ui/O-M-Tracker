@@ -109,6 +109,12 @@ function calculateAdditionalMonthlyAnnual(site: Site, month?: string | null): nu
   return isAdditionalMonthlyCostActive(site, month) ? (site.additionalCostMonthly || 0) * 12 : 0;
 }
 
+function formatPmDaysCalculation(site: Site): string {
+  const days = site.pmDaysOnSite || 0;
+  const dayLabel = days === 1 ? 'PM day/year' : 'PM days/year';
+  return `${formatNumber(days, days % 1 === 0 ? 0 : 1)} ${dayLabel} = ${formatCurrency(site.pmCost)}/year`;
+}
+
 export function buildSitePricingBreakdown(
   site: Site,
   appliedTier: RateTier,
@@ -143,8 +149,9 @@ export function buildSitePricingBreakdown(
     lines: [
       {
         label: 'PM cost',
-        calculation: 'Imported fixed cost',
+        calculation: formatPmDaysCalculation(site),
         annualValue: site.pmCost,
+        note: site.pmVisitsPerAnnum ? `${formatNumber(site.pmVisitsPerAnnum, site.pmVisitsPerAnnum % 1 === 0 ? 0 : 1)} visits/year` : null,
       },
       {
         label: 'CCTV cost',

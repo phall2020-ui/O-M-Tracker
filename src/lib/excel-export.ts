@@ -144,6 +144,36 @@ export const DEFAULT_CUSTOM_EXPORT_FIELDS: CustomExportFieldKey[] = [
   'monthlyFee',
 ];
 
+const PIPELINE_BUILD_UP_HEADERS = [
+  'Site Name',
+  'Contract Status',
+  'Forecast PAC Date',
+  'SPV',
+  'Billing Portfolio',
+  'Site Type',
+  'System Size (kWp)',
+  'PM Days / Year',
+  'PM Cost (GBP/year)',
+  'CCTV Cost (GBP/year)',
+  'Cleaning Cost (GBP/year)',
+  'Additional Base Cost (GBP/year)',
+  'Site Fixed Costs (GBP/year)',
+  'Additional Monthly Cost (GBP/month)',
+  'Additional Monthly Cost Annualised (GBP/year)',
+  '<20MW Portfolio Tariff Cost (GBP/year)',
+  '<20MW Total Site Cost (GBP/year)',
+  '<20MW Monthly Fee (GBP/month)',
+  '<20MW Fee (GBP/kWp/year)',
+  '20-30MW Portfolio Tariff Cost (GBP/year)',
+  '20-30MW Total Site Cost (GBP/year)',
+  '20-30MW Monthly Fee (GBP/month)',
+  '20-30MW Fee (GBP/kWp/year)',
+  '30-40MW Portfolio Tariff Cost (GBP/year)',
+  '30-40MW Total Site Cost (GBP/year)',
+  '30-40MW Monthly Fee (GBP/month)',
+  '30-40MW Fee (GBP/kWp/year)',
+];
+
 function money(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -248,6 +278,44 @@ function standardRow(row: ExportRow): unknown[] {
   return [...portfolioRow(row).slice(0, 18), '', '', ''];
 }
 
+function feePerKwp(annualFee: number, systemSizeKwp: number): number {
+  return systemSizeKwp > 0 ? annualFee / systemSizeKwp : 0;
+}
+
+function pipelineBuildUpRow(site: SiteWithCalculations): unknown[] {
+  const additionalMonthlyAnnual = Math.max(site.fixedFee_20MW - site.siteFixedCosts - site.portfolioCost_20MW, 0);
+
+  return [
+    site.name,
+    statusValue(site.contractStatus),
+    dateValue(site.forecastPacDate),
+    site.spvCode || '',
+    site.billingPortfolio === 'EDEN' ? 'Eden' : 'Core',
+    site.siteType,
+    site.systemSizeKwp,
+    site.pmDaysOnSite || 0,
+    money(site.pmCost),
+    money(site.cctvCost),
+    money(site.cleaningCost),
+    money(site.additionalCostAnnual || 0),
+    money(site.siteFixedCosts),
+    money(site.additionalCostMonthly || 0),
+    money(additionalMonthlyAnnual),
+    money(site.portfolioCost_20MW),
+    money(site.fixedFee_20MW),
+    money(site.fixedFee_20MW / 12),
+    money(feePerKwp(site.fixedFee_20MW, site.systemSizeKwp)),
+    money(site.portfolioCost_30MW),
+    money(site.fixedFee_30MW),
+    money(site.fixedFee_30MW / 12),
+    money(feePerKwp(site.fixedFee_30MW, site.systemSizeKwp)),
+    money(site.portfolioCost_40MW),
+    money(site.fixedFee_40MW),
+    money(site.fixedFee_40MW / 12),
+    money(feePerKwp(site.fixedFee_40MW, site.systemSizeKwp)),
+  ];
+}
+
 function addSheet(workbook: ExcelJS.Workbook, name: string, rows: unknown[][], widths: number[]) {
   const sheet = workbook.addWorksheet(name);
   sheet.addRows(rows);
@@ -331,6 +399,44 @@ export function buildClearsolExportWorkbook(sites: SiteWithCalculations[]): Exce
 
 export async function writeClearsolExportBuffer(sites: SiteWithCalculations[]): Promise<Buffer> {
   const buffer = await buildClearsolExportWorkbook(sites).xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+export function buildPipelineCostBuildUpWorkbook(sites: SiteWithCalculations[]): ExcelJS.Workbook {
+  const pipelineSites = sites
+    .filter((site) => site.contractStatus !== 'Contracted' && site.contractStatus !== 'Yes')
+    .slice()
+    .sort((a, b) => a.forecastPacDate?.localeCompare(b.forecastPacDate || '') || a.name.localeCompare(b.name));
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Clearsol O&M Portfolio Tracker';
+  workbook.created = new Date();
+
+  addSheet(
+    workbook,
+    'Pipeline Cost Build-up',
+    [
+      PIPELINE_BUILD_UP_HEADERS,
+      ...pipelineSites.map(pipelineBuildUpRow),
+    ],
+    [
+      32, 20, 18, 12, 18, 16, 18, 18, 22, 24, 26, 34, 30, 34, 42,
+      38, 34, 32, 30, 42, 36, 34, 32, 42, 36, 34, 32,
+    ]
+  );
+  setSheetFormats(
+    workbook,
+    'Pipeline Cost Build-up',
+    pipelineSites.length + 1,
+    ['I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA'],
+    ['C'],
+    ['G', 'H']
+  );
+
+  return workbook;
+}
+
+export async function writePipelineCostBuildUpBuffer(sites: SiteWithCalculations[]): Promise<Buffer> {
+  const buffer = await buildPipelineCostBuildUpWorkbook(sites).xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
 

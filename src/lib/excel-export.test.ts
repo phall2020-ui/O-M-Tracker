@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
 import { SiteWithCalculations } from '@/types';
-import { writeClearsolExportBuffer, writeCustomSitesExportBuffer } from './excel-export';
+import { buildPipelineCostBuildUpWorkbook, writeClearsolExportBuffer, writeCustomSitesExportBuffer } from './excel-export';
 
 function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
   const base = {
@@ -177,6 +177,63 @@ describe('Clearsol Excel export', () => {
       3,
       '',
       29.17,
+    ]);
+  });
+
+  it('creates a pipeline cost build-up workbook with tier scenario costs', () => {
+    const workbook = buildPipelineCostBuildUpWorkbook([
+      site({
+        name: 'Pipeline Export Site',
+        contractStatus: 'Awaiting PAC',
+        forecastPacDate: '2026-08-14',
+        onboardDate: null,
+        systemSizeKwp: 300,
+        pmCost: 100,
+        cctvCost: 25,
+        cleaningCost: 50,
+        additionalCostAnnual: 10,
+        additionalCostMonthly: 5,
+        siteFixedCosts: 185,
+        portfolioCost_20MW: 600,
+        fixedFee_20MW: 845,
+        portfolioCost_30MW: 540,
+        fixedFee_30MW: 785,
+        portfolioCost_40MW: 510,
+        fixedFee_40MW: 755,
+      }),
+    ]);
+
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Pipeline Cost Build-up']);
+    expect(rowValues(workbook, 'Pipeline Cost Build-up', 1)).toContain('<20MW Total Site Cost (GBP/year)');
+    expect(rowValues(workbook, 'Pipeline Cost Build-up', 1)).toContain('20-30MW Fee (GBP/kWp/year)');
+    expect(rowValues(workbook, 'Pipeline Cost Build-up', 2)).toEqual([
+      'Pipeline Export Site',
+      'Awaiting PAC',
+      new Date('2026-08-14T00:00:00.000Z'),
+      'AI',
+      'Core',
+      'Rooftop',
+      300,
+      0,
+      100,
+      25,
+      50,
+      10,
+      185,
+      5,
+      60,
+      600,
+      845,
+      70.42,
+      2.82,
+      540,
+      785,
+      65.42,
+      2.62,
+      510,
+      755,
+      62.92,
+      2.52,
     ]);
   });
 });

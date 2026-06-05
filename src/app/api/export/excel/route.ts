@@ -7,6 +7,7 @@ import {
   normalizeCustomExportFields,
   writeClearsolExportBuffer,
   writeCustomSitesExportBuffer,
+  writePipelineCostBuildUpBuffer,
 } from '../../../../lib/excel-export';
 
 export async function GET(request: Request) {
@@ -19,13 +20,19 @@ export async function GET(request: Request) {
     const date = new Date().toISOString().slice(0, 10);
     const requestedFields = url.searchParams.get('fields')?.split(',').map((field) => field.trim()).filter(Boolean) || [];
     const selectedFields = normalizeCustomExportFields(requestedFields);
+    const scope = url.searchParams.get('scope');
     const isCustomExport = mode === 'custom' || requestedFields.length > 0;
-    const buffer = isCustomExport
-      ? await writeCustomSitesExportBuffer(sites, selectedFields.length ? selectedFields : DEFAULT_CUSTOM_EXPORT_FIELDS)
-      : await writeClearsolExportBuffer(sites);
-    const filename = isCustomExport
-      ? `clearsol-sites-custom-export-${date}.xlsx`
-      : `clearsol-om-framework-tracker-${date}.xlsx`;
+    const isPipelineCostBuildUpExport = scope === 'pipeline' && mode === 'cost-build-up';
+    const buffer = isPipelineCostBuildUpExport
+      ? await writePipelineCostBuildUpBuffer(sites)
+      : isCustomExport
+        ? await writeCustomSitesExportBuffer(sites, selectedFields.length ? selectedFields : DEFAULT_CUSTOM_EXPORT_FIELDS)
+        : await writeClearsolExportBuffer(sites);
+    const filename = isPipelineCostBuildUpExport
+      ? `clearsol-pipeline-cost-build-up-${date}.xlsx`
+      : isCustomExport
+        ? `clearsol-sites-custom-export-${date}.xlsx`
+        : `clearsol-om-framework-tracker-${date}.xlsx`;
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
