@@ -115,7 +115,7 @@ export async function listSites(params: {
 } = {}): Promise<SiteWithCalculations[]> {
   const contractId = await resolveContractId(params.contractId);
   const sites = await prisma.site.findMany({
-    where: { contractId, sourceSheet: { not: 'CM_DAYS_ONLY_PLACEHOLDER' } },
+    where: { contractId, OR: [{ sourceSheet: null }, { sourceSheet: { not: 'CM_DAYS_ONLY_PLACEHOLDER' } }] },
     include: { spv: true },
     orderBy: { name: params.sortOrder === 'desc' ? 'desc' : 'asc' },
   });
