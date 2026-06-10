@@ -13,3 +13,38 @@
 2026-06-04T18:10:16.411923+00:00 INFO empty_transcript | 20260604-161758-252
 2026-06-04T18:29:44.537327+00:00 INFO empty_transcript | 20260604-161758-252
 2026-06-04T18:36:09.886728+00:00 INFO empty_transcript | 20260604-161758-252
+2026-06-10T05:44:14.309859+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T05:44:14.321358+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T05:45:03.111973+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T05:45:03.122241+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T05:49:37.798703+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T05:49:37.811066+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T06:12:06.899137+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T06:12:06.910340+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T06:16:56.552296+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T06:16:56.562066+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T06:17:49.234817+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T06:17:49.244157+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T06:22:55.799123+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T06:22:55.812163+00:00 INFO empty_cli_response | 20260610-054129-018
