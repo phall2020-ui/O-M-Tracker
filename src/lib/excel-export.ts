@@ -354,14 +354,14 @@ export function buildClearsolExportWorkbook(sites: SiteWithCalculations[]): Exce
   const smallCapacity = smallRows.reduce((sum, row) => sum + row.site.systemSizeKwp, 0);
   const standardCapacity = standardRows.reduce((sum, row) => sum + row.site.systemSizeKwp, 0);
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Clearsol O&M Portfolio Tracker';
+  workbook.creator = 'O&M Portfolio Tracker';
   workbook.created = new Date();
 
   addSheet(
     workbook,
     'Overview',
     [
-      ['', 'ClearSol O&M Framework Tracker', '', 'Date:', new Date()],
+      ['', 'O&M Framework Tracker', '', 'Date:', new Date()],
       ['', 'Portfolio Overview'],
       [],
       ['', 'Portfolio Summary'],
@@ -408,7 +408,7 @@ export function buildPipelineCostBuildUpWorkbook(sites: SiteWithCalculations[]):
     .slice()
     .sort((a, b) => a.forecastPacDate?.localeCompare(b.forecastPacDate || '') || a.name.localeCompare(b.name));
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Clearsol O&M Portfolio Tracker';
+  workbook.creator = 'O&M Portfolio Tracker';
   workbook.created = new Date();
 
   addSheet(
@@ -456,7 +456,7 @@ export function buildCustomSitesExportWorkbook(
     .filter((field): field is CustomExportField => Boolean(field));
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Clearsol O&M Portfolio Tracker';
+  workbook.creator = 'O&M Portfolio Tracker';
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet('Custom Site Export');

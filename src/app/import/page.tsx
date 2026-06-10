@@ -79,7 +79,7 @@ function ImportContent() {
               <div>
                 <h2 className="chart-title">Import from Excel</h2>
                 <p className="card-sub" style={{ marginTop: '6px' }}>
-                Upload your Clearsol O&M Framework Tracker spreadsheet to import site data.
+                Upload your O&M Framework Tracker spreadsheet to import site data.
                 The importer will read the &quot;Portfolio Tracker&quot; tab.
                 </p>
               </div>

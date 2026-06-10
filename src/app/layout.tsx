@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Clearsol O&M Portfolio Tracker",
+  title: "O&M Portfolio Tracker",
   description: "Solar portfolio management and tracking system",
 };
 

@@ -34,8 +34,8 @@ export function Sidebar() {
             <Sun className="h-5 w-5 text-white" />
           </div>
           <div>
-            <span className="logo-text">Clearsol</span>
-            <span className="logo-sub">O&M Control</span>
+            <span className="logo-text">O&M Tracker</span>
+            <span className="logo-sub">AMPYR DE</span>
           </div>
         </div>
         <button
@@ -56,8 +56,8 @@ export function Sidebar() {
             <Sun className="h-5 w-5 text-white" />
           </div>
           <div>
-            <span className="logo-text">Clearsol</span>
-            <span className="logo-sub">O&M Control</span>
+            <span className="logo-text">O&M Tracker</span>
+            <span className="logo-sub">AMPYR DE</span>
           </div>
         </div>
         <ContractSelector />

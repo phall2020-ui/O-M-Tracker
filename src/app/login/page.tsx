@@ -55,8 +55,8 @@ function LoginForm() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/25 mb-4">
             <Zap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Clearsol O&M</h1>
-          <p className="text-slate-400 mt-1">Portfolio Tracker</p>
+          <h1 className="text-2xl font-bold text-white">O&M Portfolio Tracker</h1>
+          <p className="text-slate-400 mt-1">AMPYR Distributed Energy</p>
         </div>
 
         <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-xl">
@@ -81,7 +81,7 @@ function LoginForm() {
                   id="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="admin@clearsol.co.uk"
+                  placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -125,7 +125,7 @@ function LoginForm() {
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-6 pt-4 border-t border-slate-700">
                 <p className="text-xs text-slate-500 text-center">
-                  Admin: admin@clearsol.co.uk / admin123 · View only: viewer@clearsol.co.uk / viewer123
+                  Dev logins: admin / manager / viewer / contractor (see prisma/seed.ts)
                 </p>
               </div>
             )}
@@ -133,7 +133,7 @@ function LoginForm() {
         </Card>
 
         <p className="text-center text-slate-500 text-sm mt-6">
-          © {new Date().getFullYear()} Clearsol O&M. All rights reserved.
+          © {new Date().getFullYear()} AMPYR Distributed Energy. All rights reserved.
         </p>
       </div>
     </div>
