@@ -1,0 +1,11 @@
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
+import { PrismaMssql } from '@prisma/adapter-mssql';
+const p = new PrismaClient({ adapter: new PrismaMssql(process.env.DATABASE_URL || '') });
+const spvs = await p.sPV.findMany({ orderBy: { code: 'asc' } });
+console.log('SPVs:');
+for (const s of spvs) console.log(`  ${s.code} | ${s.name}`);
+const sites = await p.site.findMany({ include: { spv: true, contract: true }, orderBy: { name: 'asc' } });
+console.log(`\nSites (${sites.length}):`);
+for (const s of sites) console.log(`  ${s.name} | ${s.systemSizeKwp} kWp | status=${s.contractStatus} | spv=${s.spv?.code ?? 'NONE'} | contract=${s.contract?.code} | portfolio=${s.billingPortfolio}`);
+await p.$disconnect();

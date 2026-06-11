@@ -48,3 +48,8 @@
   stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
 
 2026-06-10T06:22:55.812163+00:00 INFO empty_cli_response | 20260610-054129-018
+2026-06-10T20:48:13.054264+00:00 [CLI] CLI exit code 1
+  stderr: 
+  stdout: Failed to authenticate. API Error: 401 Invalid authentication credentials
+
+2026-06-10T20:48:13.065323+00:00 INFO empty_cli_response | 20260610-204032-681
