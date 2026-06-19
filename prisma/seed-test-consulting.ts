@@ -50,6 +50,16 @@ const exampleSites = [
     cleaningCost: 260,
     spvCode: 'TC1',
   },
+  {
+    name: 'Boston',
+    systemSizeKwp: 1600,
+    siteType: 'ROOFTOP',
+    contractStatus: 'AWAITING_CONTRACT',
+    pmCost: 2550,
+    pmDaysOnSite: 3,
+    cctvCost: 0,
+    cleaningCost: 0,
+  },
 ];
 
 const defaultRateTiers = [
@@ -118,9 +128,11 @@ async function main() {
 
   let sitesCreated = 0;
   for (const site of exampleSites) {
-    const spv = await prisma.sPV.findUnique({
-      where: { contractId_code: { contractId: contract.id, code: site.spvCode } },
-    });
+    const spv = site.spvCode
+      ? await prisma.sPV.findUnique({
+          where: { contractId_code: { contractId: contract.id, code: site.spvCode } },
+        })
+      : null;
 
     const existing = await prisma.site.findFirst({
       where: { name: site.name, contractId: contract.id },
@@ -136,7 +148,7 @@ async function main() {
         contractStatus: site.contractStatus,
         onboardDate: site.onboardDate || null,
         pmCost: site.pmCost,
-        pmDaysOnSite: 0,
+        pmDaysOnSite: site.pmDaysOnSite || 0,
         pmVisitsPerAnnum: 0,
         cctvCost: site.cctvCost,
         cleaningCost: site.cleaningCost,
