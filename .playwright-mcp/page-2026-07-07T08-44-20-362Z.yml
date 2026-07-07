@@ -1,0 +1,29 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - img [ref=f1e7]
+      - heading "O&M Portfolio Tracker" [level=1] [ref=f1e9]
+      - paragraph [ref=f1e10]: AMPYR Distributed Energy
+    - generic [ref=f1e11]:
+      - generic [ref=f1e12]:
+        - heading "Welcome back" [level=3] [ref=f1e13]
+        - paragraph [ref=f1e14]: Sign in to access your portfolio
+      - generic [ref=f1e15]:
+        - generic [ref=f1e16]:
+          - generic [ref=f1e17]:
+            - text: Email
+            - textbox "Email" [ref=f1e18]:
+              - /placeholder: you@company.com
+          - generic [ref=f1e19]:
+            - text: Password
+            - textbox "Password" [ref=f1e20]:
+              - /placeholder: ••••••••
+          - button "Sign in" [ref=f1e21]:
+            - generic [ref=f1e22]:
+              - img [ref=f1e23]
+              - text: Sign in
+        - paragraph [ref=f1e27]: "Dev logins: admin / manager / viewer / contractor (see prisma/seed.ts)"
+    - paragraph [ref=f1e28]: © 2026 AMPYR Distributed Energy. All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f1e34] [cursor=pointer]:
+    - img [ref=f1e35]
+  - alert [ref=f1e38]
