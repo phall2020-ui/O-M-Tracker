@@ -12,6 +12,7 @@ function snapshot(overrides: Partial<BillingSnapshotForReport>): BillingSnapshot
     systemSizeKwp: 1000,
     siteFixedCostsAnnual: 200,
     variableCostAnnual: 2000,
+    annualFee: 2200,
     expectedAmount: 183.33,
     invoicedAmount: null,
     sourcePayload: JSON.stringify({ site: { billingPortfolio: 'CORE' } }),
@@ -37,7 +38,7 @@ describe('SPV monthly snapshot report', () => {
       siteCount: 2,
       contractedSiteCount: 2,
       monthlyFee: 150,
-      annualFee: 1800,
+      annualFee: 4400,
       billingSnapshotCount: 2,
       correctiveDaysAllowed: 0,
     });
@@ -97,5 +98,36 @@ describe('SPV monthly snapshot report', () => {
       billingPortfolio: 'EDEN',
       contractedCapacityKwp: 6_000,
     });
+  });
+});
+
+describe('SPV monthly snapshot report pro-rata handling', () => {
+  it('reports the stored annual fee rather than 12x a pro-rated month', () => {
+    // Riverside onboards mid-month: expectedAmount carries the pro-rata factor, the stored
+    // annual fee does not. Site Costs + Variable Cost must still reconcile to Annual Fee.
+    const report = buildSpvMonthlyReportFromSnapshots(
+      [snapshot({ siteFixedCostsAnnual: 200, variableCostAnnual: 2000, annualFee: 2200, expectedAmount: 94.62 })],
+      '2026-08',
+      ['2026-08']
+    );
+
+    expect(report.rows[0].annualFee).toBe(2200);
+    expect(report.rows[0].siteFixedCostsAnnual + report.rows[0].variableCostAnnual).toBe(2200);
+    expect(report.rows[0].monthlyFee).toBeCloseTo(94.62, 2);
+    expect(report.rows[0].averageFeePerKwp).toBeCloseTo(2.2, 2);
+    expect(report.totals.annualFee).toBe(2200);
+  });
+
+  it('classifies a snapshot from the linked site when the payload has no site block', () => {
+    // Notion-imported snapshots store the raw Notion row, so the payload cannot classify them.
+    const report = buildSpvMonthlyReportFromSnapshots(
+      [snapshot({ billingPortfolio: 'EDEN', sourcePayload: JSON.stringify({ 'Applied Tier': 'Standard' }) })],
+      '2026-05',
+      ['2026-05']
+    );
+
+    expect(report.rows[0].billingPortfolio).toBe('EDEN');
+    expect(report.portfolioBreakdowns?.find((row) => row.billingPortfolio === 'EDEN')?.contractedCapacityKwp).toBe(1000);
+    expect(report.portfolioBreakdowns?.find((row) => row.billingPortfolio === 'CORE')?.contractedCapacityKwp).toBe(0);
   });
 });

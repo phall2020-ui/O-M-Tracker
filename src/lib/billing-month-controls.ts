@@ -247,17 +247,29 @@ function finalizeAdjustmentFields(row: SpvMonthlyRow): SpvMonthlyRow {
   };
 }
 
+// Rows are keyed by billing portfolio as well as SPV code. An SPV that holds both Core and Eden
+// sites produces two rows, and keying on the code alone silently dropped one of them, leaving the
+// visible rows unable to sum to the printed total.
+function rowKey(row: Pick<SpvMonthlyRow, 'spvCode' | 'billingPortfolio'>): string {
+  return `${row.billingPortfolio || 'CORE'}:${row.spvCode}`;
+}
+
 export async function applyBillingMonthControls(report: SpvMonthlyReport, contractId?: string | null): Promise<SpvMonthlyReport> {
   const controls = await getBillingMonthControls(report.month, contractId);
   const rows = report.rows.map(finalizeAdjustmentFields);
-  const rowMap = new Map(rows.map((row) => [row.spvCode, row]));
+  const rowMap = new Map(rows.map((row) => [rowKey(row), row]));
+
+  // Adjustments carry an SPV code but no billing portfolio, so a code held by both portfolios
+  // books against the Core row.
+  const findRowByCode = (code: string) =>
+    rowMap.get(`CORE:${code}`) || rows.find((row) => row.spvCode === code);
 
   for (const adjustment of controls.adjustments) {
     if (adjustment.scope === 'SITE') {
       const targetCode = adjustment.spvCode || 'UNASSIGNED';
-      const row = rowMap.get(targetCode) || adjustmentRow(targetCode, adjustment.spvName || targetCode);
+      const row = findRowByCode(targetCode) || adjustmentRow(targetCode, adjustment.spvName || targetCode);
       applyAdjustment(row, adjustment.amount);
-      rowMap.set(targetCode, row);
+      rowMap.set(rowKey(row), row);
       continue;
     }
 
@@ -272,9 +284,9 @@ export async function applyBillingMonthControls(report: SpvMonthlyReport, contra
       }
     }
 
-    const row = rowMap.get('PORTFOLIO') || adjustmentRow('PORTFOLIO', 'Portfolio adjustments');
+    const row = findRowByCode('PORTFOLIO') || adjustmentRow('PORTFOLIO', 'Portfolio adjustments');
     applyAdjustment(row, adjustment.amount);
-    rowMap.set('PORTFOLIO', row);
+    rowMap.set(rowKey(row), row);
   }
 
   const adjustedRows = Array.from(rowMap.values())

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
-import { SiteWithCalculations } from '@/types';
+import { RateTier, SiteWithCalculations } from '@/types';
 import { buildPipelineCostBuildUpWorkbook, writeClearsolExportBuffer, writeCustomSitesExportBuffer } from './excel-export';
 
 function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
@@ -54,8 +54,8 @@ function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
 }
 
 describe('Clearsol Excel export', () => {
-  async function readExportedWorkbook(sites: SiteWithCalculations[]) {
-    const buffer = await writeClearsolExportBuffer(sites);
+  async function readExportedWorkbook(sites: SiteWithCalculations[], tiers?: RateTier[], month?: string) {
+    const buffer = await writeClearsolExportBuffer(sites, tiers, month);
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as never);
     return workbook;
@@ -130,8 +130,26 @@ describe('Clearsol Excel export', () => {
     expect(row[11]).toBe(120);
     expect(row[12]).toBe(25);
     expect(row[13]).toBe(270);
-    expect(row[16]).toBe(770);
-    expect(row[17]).toBeCloseTo(64.17, 2);
+    expect(row[16]).toBe(740);
+    expect(row[17]).toBeCloseTo(61.67, 2);
+  });
+
+  it('respects the additional monthly cost window, matching the monthly SPV report', async () => {
+    const workbook = await readExportedWorkbook(
+      [
+        site({
+          additionalCostMonthly: 200,
+          additionalCostMonthlyStartMonth: '2026-01',
+          additionalCostMonthlyEndMonth: '2026-03',
+        }),
+      ],
+      undefined,
+      '2026-08'
+    );
+    const row = rowValues(workbook, 'Portfolio Tracker', 2);
+
+    // Fixed costs 150 + 100 kWp x GBP 1.70 = GBP 320; the GBP 2,400 extra ended in March.
+    expect(row[16]).toBe(320);
   });
 
   it('splits small and standard sites into the framework tabs', async () => {
@@ -176,7 +194,7 @@ describe('Clearsol Excel export', () => {
       'AD1',
       3,
       '',
-      29.17,
+      26.67,
     ]);
   });
 

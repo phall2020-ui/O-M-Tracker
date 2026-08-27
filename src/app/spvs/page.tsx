@@ -228,20 +228,39 @@ function SpvsContent() {
     row.spvCode === 'UNASSIGNED' || (row.spvCode === 'EDEN' && row.billingPortfolio === 'EDEN');
   const getRowKey = (row: { spvCode: string; billingPortfolio?: string }) => `${row.billingPortfolio || 'CORE'}:${row.spvCode}`;
   const normalizeCode = (value: string | null | undefined) => (value || '').trim().toUpperCase();
+  // The report only counts a site once it is visible by the reporting month end, so the
+  // drill-down has to apply the same rule or it lists sites the row never summed.
+  const isVisibleInReportMonth = (site: SiteWithCalculations) => {
+    const startDate = site.onboardDate || site.actualPacDate;
+    if (!startDate || !report?.month) return true;
+    const [year, month] = report.month.split('-').map(Number);
+    const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+    return new Date(`${startDate.slice(0, 10)}T00:00:00.000Z`) <= monthEnd;
+  };
+
   const sitesForSpvRow = (row: SpvMonthlyRow) => {
     const rowSpvCode = normalizeCode(row.spvCode);
     const rowPortfolio = normalizeCode(row.billingPortfolio || 'CORE');
+    const visible = siteDetails.filter(isVisibleInReportMonth);
     if (row.spvCode === 'UNASSIGNED') {
-      return siteDetails.filter((site) => !normalizeCode(site.spvCode) && normalizeCode(site.billingPortfolio) !== 'EDEN');
+      return visible.filter((site) => !normalizeCode(site.spvCode) && normalizeCode(site.billingPortfolio) !== 'EDEN');
     }
+    // The 'Eden Sites' row only holds Eden sites with no SPV; Eden sites that do have one get
+    // their own EDEN:<spvCode> row and must not be listed here as well.
     if (row.spvCode === 'EDEN' && row.billingPortfolio === 'EDEN') {
-      return siteDetails.filter((site) => normalizeCode(site.billingPortfolio) === 'EDEN');
+      return visible.filter((site) => !normalizeCode(site.spvCode) && normalizeCode(site.billingPortfolio) === 'EDEN');
     }
-    return siteDetails.filter((site) => (
+    return visible.filter((site) => (
       normalizeCode(site.spvCode) === rowSpvCode &&
       normalizeCode(site.billingPortfolio) === rowPortfolio
     ));
   };
+  // Carry the row's billing portfolio into the invoice so it bills the same sites the row summed.
+  const spvInvoiceHref = (row: SpvMonthlyRow) => {
+    const base = withContract(`/spvs/${row.spvCode}`);
+    return `${base}${base.includes('?') ? '&' : '?'}portfolio=${row.billingPortfolio || 'CORE'}`;
+  };
+
   const isLocked = Boolean(monthControls?.isLocked || report?.isLocked);
 
   if (isLoading) {
@@ -595,7 +614,7 @@ function SpvsContent() {
                         {isInformationalSpvRow(row) ? (
                           <span className="muted-cell">n/a</span>
                         ) : (
-                          <Link href={withContract(`/spvs/${row.spvCode}`)} onClick={(event) => event.stopPropagation()}>
+                          <Link href={spvInvoiceHref(row)} onClick={(event) => event.stopPropagation()}>
                             <button className="icon-action" type="button" title={`Open ${row.spvCode} invoice`}>
                               <FileText className="h-4 w-4" />
                               <ChevronRight className="h-4 w-4" />

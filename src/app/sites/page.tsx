@@ -304,6 +304,10 @@ function SitesContent() {
     EDEN: activeSites.filter((site) => site.billingPortfolio === 'EDEN').length,
   }), [activeSites]);
 
+  // Eden runs as its own contract. The Core/Eden tabs only mean something for a contract that
+  // still holds both, so a single-portfolio contract shows its sites without the split.
+  const hasMixedPortfolios = portfolioCounts.CORE > 0 && portfolioCounts.EDEN > 0;
+
   const filteredSites = useMemo(() => {
     const term = search.trim().toLowerCase();
     return activeSites.filter((site) => {
@@ -313,6 +317,7 @@ function SitesContent() {
         site.siteType?.toLowerCase().includes(term) ||
         site.billingPortfolio.toLowerCase().includes(term);
       const matchesPortfolio =
+        !hasMixedPortfolios ||
         portfolioTab === 'ALL' ||
         (portfolioTab === 'EDEN' ? site.billingPortfolio === 'EDEN' : site.billingPortfolio !== 'EDEN');
       const matchesContract =
@@ -321,7 +326,7 @@ function SitesContent() {
       const matchesSpv = spvFilter === 'ALL' || site.spvCode === spvFilter;
       return matchesSearch && matchesPortfolio && matchesContract && matchesSpv;
     });
-  }, [activeSites, contractFilter, portfolioTab, search, spvFilter]);
+  }, [activeSites, contractFilter, hasMixedPortfolios, portfolioTab, search, spvFilter]);
 
   // Calculate totals
   const totalCapacity = filteredSites.reduce((sum, s) => sum + (s.systemSizeKwp || 0), 0);
@@ -413,6 +418,7 @@ function SitesContent() {
           </div>
         </div>
 
+        {hasMixedPortfolios && (
         <div className="portfolio-tabs" role="tablist" aria-label="Site portfolio">
           {[
             ['CORE', 'ADE Portfolio'],
@@ -432,6 +438,7 @@ function SitesContent() {
             </button>
           ))}
         </div>
+        )}
 
         <div className="filter-strip">
           <div className="filter-strip-title">

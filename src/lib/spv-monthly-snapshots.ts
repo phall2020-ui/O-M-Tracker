@@ -12,8 +12,12 @@ export interface BillingSnapshotForReport {
   systemSizeKwp: number;
   siteFixedCostsAnnual: number;
   variableCostAnnual: number;
+  annualFee: number;
   expectedAmount: number | null;
   invoicedAmount: number | null;
+  // Taken from the linked Site where the caller has it. Notion-imported payloads carry the raw
+  // Notion row and no site block, so the payload alone cannot classify them.
+  billingPortfolio?: BillingPortfolioCode | null;
   sourcePayload?: string | null;
 }
 
@@ -55,6 +59,7 @@ function emptyPortfolioBreakdown(billingPortfolio: BillingPortfolioCode): Billin
 }
 
 function billingPortfolioFromSnapshot(snapshot: BillingSnapshotForReport): BillingPortfolioCode {
+  if (snapshot.billingPortfolio) return snapshot.billingPortfolio === 'EDEN' ? 'EDEN' : 'CORE';
   if (!snapshot.sourcePayload) return 'CORE';
   try {
     const parsed = JSON.parse(snapshot.sourcePayload) as { site?: { billingPortfolio?: string } };
@@ -74,11 +79,13 @@ function displaySpvForSnapshot(snapshot: BillingSnapshotForReport, billingPortfo
   return { code: 'UNASSIGNED', name: 'Unassigned' };
 }
 
+// annualFee is the sum of the stored full-year fees. It is deliberately not derived from
+// monthlyFee, which carries each snapshot's pro-rata factor and would understate a month
+// containing a mid-month start while Site Costs and Variable Cost stayed un-prorated.
 function finalize(row: SpvMonthlyRow): SpvMonthlyRow {
   return {
     ...row,
-    annualFee: row.monthlyFee * 12,
-    averageFeePerKwp: row.contractedCapacityKwp > 0 ? (row.monthlyFee * 12) / row.contractedCapacityKwp : 0,
+    averageFeePerKwp: row.contractedCapacityKwp > 0 ? row.annualFee / row.contractedCapacityKwp : 0,
     correctiveDaysAllowed: Math.floor(row.contractedCapacityKwp / 1000 / 12),
   };
 }
@@ -111,6 +118,7 @@ export function buildSpvMonthlyReportFromSnapshots(
     row.contractedCapacityKwp += snapshot.systemSizeKwp;
     row.siteFixedCostsAnnual += snapshot.siteFixedCostsAnnual;
     row.variableCostAnnual += snapshot.variableCostAnnual;
+    row.annualFee += snapshot.annualFee;
     row.monthlyFee += snapshot.expectedAmount || 0;
     row.billingSnapshotCount = (row.billingSnapshotCount || 0) + 1;
     row.invoicedAmount = (row.invoicedAmount || 0) + (snapshot.invoicedAmount || 0);
@@ -120,6 +128,7 @@ export function buildSpvMonthlyReportFromSnapshots(
     portfolioRow.contractedCapacityKwp += snapshot.systemSizeKwp;
     portfolioRow.siteFixedCostsAnnual += snapshot.siteFixedCostsAnnual;
     portfolioRow.variableCostAnnual += snapshot.variableCostAnnual;
+    portfolioRow.annualFee += snapshot.annualFee;
     portfolioRow.monthlyFee += snapshot.expectedAmount || 0;
     groups.set(groupKey, row);
   }
@@ -139,7 +148,7 @@ export function buildSpvMonthlyReportFromSnapshots(
         contractedCapacityKwp: sum.contractedCapacityKwp + row.contractedCapacityKwp,
         siteFixedCostsAnnual: sum.siteFixedCostsAnnual + row.siteFixedCostsAnnual,
         variableCostAnnual: sum.variableCostAnnual + row.variableCostAnnual,
-        annualFee: 0,
+        annualFee: sum.annualFee + row.annualFee,
         monthlyFee: sum.monthlyFee + row.monthlyFee,
         averageFeePerKwp: 0,
         correctiveDaysAllowed: 0,
@@ -152,7 +161,6 @@ export function buildSpvMonthlyReportFromSnapshots(
   const monthOptions: MonthOption[] = availableMonths.map((value) => ({ value, label: formatMonthLabel(value) }));
   const portfolioBreakdowns = Array.from(portfolioGroups.values()).map((row) => ({
     ...row,
-    annualFee: row.monthlyFee * 12,
     correctiveDaysAllowed: Math.floor(row.contractedCapacityKwp / 1000 / 12),
   }));
 

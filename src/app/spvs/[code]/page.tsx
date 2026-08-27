@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/calculations';
 import { SiteWithCalculations } from '@/types';
@@ -33,6 +33,8 @@ interface SpvDetails {
 
 function SpvDetailContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const portfolio = searchParams.get('portfolio');
   const router = useRouter();
   const { withContract } = useContractQuery();
   const code = params.code as string;
@@ -43,7 +45,9 @@ function SpvDetailContent() {
 
   const fetchSpvDetails = useCallback(async () => {
     try {
-      const res = await fetch(withContract(`/api/spvs/${code}`));
+      const base = withContract(`/api/spvs/${code}`);
+      const url = portfolio ? `${base}${base.includes('?') ? '&' : '?'}portfolio=${portfolio}` : base;
+      const res = await fetch(url);
       const data = await res.json();
       
       if (data.success) {
@@ -56,7 +60,7 @@ function SpvDetailContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [code, withContract]);
+  }, [code, portfolio, withContract]);
 
   useEffect(() => {
     if (code) {
@@ -239,11 +243,11 @@ function SpvDetailContent() {
                         {formatCurrency(site.siteFixedCosts)}
                       </td>
                       <td data-label="Portfolio Cost" className="numeric">
-                        {formatCurrency(site.portfolioCost_20MW)}
+                        {formatCurrency(site.pricingBreakdown.portfolioCostAnnual)}
                       </td>
                       <td data-label="Fixed Fee" className="numeric">
                         {site.contractStatus === 'Contracted' || site.contractStatus === 'Yes' 
-                          ? formatCurrency(site.fixedFee_20MW)
+                          ? formatCurrency(site.pricingBreakdown.annualFee)
                           : <span className="muted-cell">-</span>
                         }
                       </td>
@@ -269,7 +273,7 @@ function SpvDetailContent() {
                       {formatCurrency(contractedSites.reduce((s, site) => s + site.siteFixedCosts, 0))}
                     </td>
                     <td data-label="Portfolio Cost" className="numeric">
-                      {formatCurrency(contractedSites.reduce((s, site) => s + site.portfolioCost_20MW, 0))}
+                      {formatCurrency(contractedSites.reduce((s, site) => s + site.pricingBreakdown.portfolioCostAnnual, 0))}
                     </td>
                     <td data-label="Fixed Fee" className="numeric">
                       {formatCurrency(spvDetails.summary.totalAnnualFee)}

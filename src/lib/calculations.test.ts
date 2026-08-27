@@ -4,6 +4,8 @@ import {
   calculateSiteWithAllTiers,
   currentPortfolioTier,
   DEFAULT_RATE_TIERS,
+  isLegacyTierName,
+  STANDARD_RATE_PER_KWP,
 } from './calculations';
 import { Site } from '@/types';
 
@@ -41,33 +43,45 @@ function site(overrides: Partial<Site>): Site {
 }
 
 describe('portfolio calculations', () => {
-  it('uses combined Core and Eden contracted capacity for tier pricing', () => {
+  it('prices every portfolio at the standard rate regardless of contracted capacity', () => {
+    const small = site({ id: 'small', systemSizeKwp: 1_000 });
     const core = site({ id: 'core', billingPortfolio: 'CORE', systemSizeKwp: 15_000 });
     const eden = site({ id: 'eden', billingPortfolio: 'EDEN', systemSizeKwp: 6_000 });
 
-    expect(currentPortfolioTier([core, eden], DEFAULT_RATE_TIERS).tierName).toBe('20-30MW');
+    expect(currentPortfolioTier([small], DEFAULT_RATE_TIERS)).toMatchObject({ tierName: 'Standard', ratePerKwp: STANDARD_RATE_PER_KWP });
+    expect(currentPortfolioTier([core, eden], DEFAULT_RATE_TIERS)).toMatchObject({ tierName: 'Standard', ratePerKwp: STANDARD_RATE_PER_KWP });
   });
 
-  it('prices Eden and Core with the same combined tier rate but reports them separately', () => {
-    const tier = DEFAULT_RATE_TIERS[1];
+  it('keeps the superseded capacity bands available for scenario comparison', () => {
+    const calculated = calculateSiteWithAllTiers(site({ systemSizeKwp: 1_000 }), DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0]);
+
+    expect(calculated.portfolioCost_20MW).toBe(1_000 * 2);
+    expect(calculated.portfolioCost_30MW).toBe(1_000 * 1.8);
+    expect(calculated.portfolioCost_40MW).toBe(1_000 * 1.7);
+    expect(isLegacyTierName('<20MW')).toBe(true);
+    expect(isLegacyTierName('Standard')).toBe(false);
+  });
+
+  it('reports Core and Eden separately while pricing both at the standard rate', () => {
+    const tier = DEFAULT_RATE_TIERS[0];
     const core = calculateSiteWithAllTiers(site({ id: 'core', billingPortfolio: 'CORE', systemSizeKwp: 15_000 }), DEFAULT_RATE_TIERS, tier);
     const eden = calculateSiteWithAllTiers(site({ id: 'eden', billingPortfolio: 'EDEN', systemSizeKwp: 6_000 }), DEFAULT_RATE_TIERS, tier);
     const summary = calculatePortfolioSummary([core, eden]);
 
-    expect(summary.currentTier).toBe('20-30MW');
-    expect(core.monthlyFee).toBeCloseTo((200 + 15_000 * 1.8) / 12, 2);
-    expect(eden.monthlyFee).toBeCloseTo((200 + 6_000 * 1.8) / 12, 2);
+    expect(summary.currentTier).toBe('Standard');
+    expect(core.monthlyFee).toBeCloseTo((200 + 15_000 * 1.7) / 12, 2);
+    expect(eden.monthlyFee).toBeCloseTo((200 + 6_000 * 1.7) / 12, 2);
     expect(summary.portfolioBreakdowns).toEqual([
       expect.objectContaining({
         billingPortfolio: 'CORE',
         contractedCapacityKwp: 15_000,
-        monthlyFee: (200 + 15_000 * 1.8) / 12,
+        monthlyFee: (200 + 15_000 * 1.7) / 12,
         correctiveDaysAllowed: 1,
       }),
       expect.objectContaining({
         billingPortfolio: 'EDEN',
         contractedCapacityKwp: 6_000,
-        monthlyFee: (200 + 6_000 * 1.8) / 12,
+        monthlyFee: (200 + 6_000 * 1.7) / 12,
         correctiveDaysAllowed: 0,
       }),
     ]);
@@ -87,10 +101,10 @@ describe('portfolio calculations', () => {
 
     expect(calculated.siteFixedCosts).toBe(320);
     expect(calculated.fixedFee_20MW).toBe(320 + 1_000 * 2 + 25 * 12);
-    expect(summary.totalMonthlyFee).toBeCloseTo((320 + 1_000 * 2) / 12 + 25, 2);
+    expect(summary.totalMonthlyFee).toBeCloseTo((320 + 1_000 * 1.7) / 12 + 25, 2);
     expect(summary.portfolioBreakdowns[0]).toMatchObject({
       siteFixedCostsAnnual: 320,
-      annualFee: 320 + 1_000 * 2 + 25 * 12,
+      annualFee: 320 + 1_000 * 1.7 + 25 * 12,
     });
   });
 
@@ -107,24 +121,24 @@ describe('portfolio calculations', () => {
       isBillable: true,
       reviewStatus: 'VERIFIED',
       reviewReason: 'Contracted site priced using active portfolio tier',
-      appliedTierName: '<20MW',
-      appliedTierRatePerKwp: 2,
+      appliedTierName: 'Standard',
+      appliedTierRatePerKwp: STANDARD_RATE_PER_KWP,
       contractedCapacityKwpForTier: 12_000,
       siteFixedCostsAnnual: 200,
-      portfolioCostAnnual: 2_000,
+      portfolioCostAnnual: 1_700,
       additionalMonthlyAnnual: 0,
-      annualFee: 2_200,
-      monthlyFee: 2_200 / 12,
+      annualFee: 1_900,
+      monthlyFee: 1_900 / 12,
     });
     expect(calculated.pricingBreakdown.lines).toEqual([
       expect.objectContaining({ label: 'PM cost', calculation: '0 PM days/year = £100.00/year', annualValue: 100 }),
       expect.objectContaining({ label: 'CCTV cost', annualValue: 50 }),
       expect.objectContaining({ label: 'Cleaning cost', annualValue: 50 }),
       expect.objectContaining({ label: 'Additional annual cost', annualValue: 0 }),
-      expect.objectContaining({ label: 'Portfolio tariff', annualValue: 2_000 }),
+      expect.objectContaining({ label: 'Portfolio tariff', annualValue: 1_700 }),
       expect.objectContaining({ label: 'Additional monthly cost', annualValue: 0 }),
-      expect.objectContaining({ label: 'Annual fee', annualValue: 2_200 }),
-      expect.objectContaining({ label: 'Monthly fee', annualValue: 2_200 / 12 }),
+      expect.objectContaining({ label: 'Annual fee', annualValue: 1_900 }),
+      expect.objectContaining({ label: 'Monthly fee', annualValue: 1_900 / 12 }),
     ]);
   });
 
@@ -174,10 +188,10 @@ describe('portfolio calculations', () => {
       additionalCostMonthlyEndMonth: '2026-06',
     });
 
-    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-04').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12, 2);
-    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-05').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12 + 25, 2);
-    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-06').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12 + 25, 2);
-    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-07').monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12, 2);
+    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-04').monthlyFee).toBeCloseTo((200 + 1_000 * 1.7) / 12, 2);
+    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-05').monthlyFee).toBeCloseTo((200 + 1_000 * 1.7) / 12 + 25, 2);
+    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-06').monthlyFee).toBeCloseTo((200 + 1_000 * 1.7) / 12 + 25, 2);
+    expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-07').monthlyFee).toBeCloseTo((200 + 1_000 * 1.7) / 12, 2);
     expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-05').pricingBreakdown.additionalMonthlyAnnual).toBe(300);
     expect(calculateSiteWithAllTiers(customSite, DEFAULT_RATE_TIERS, DEFAULT_RATE_TIERS[0], '2026-07').pricingBreakdown.additionalMonthlyAnnual).toBe(0);
   });

@@ -155,10 +155,14 @@ export async function getSite(id: string, contractIdInput?: string | null): Prom
     activeRateTiers(contractId),
   ]);
   if (!site) return null;
+  // Price the site for the current month on the same basis /spvs uses: capacity visible by
+  // month end, and additional monthly costs only inside their configured window.
+  const month = currentMonth();
+  const { end } = getMonthBounds(month);
   const mappedSites = allSites.map(mapPrismaSite);
-  const contractedCapacityKwpForTier = contractedCapacityForTier(mappedSites);
+  const contractedCapacityKwpForTier = contractedCapacityForTier(mappedSites, end);
   const appliedTier = determinePortfolioTier(contractedCapacityKwpForTier / 1000, tiers);
-  return calculateSiteWithAllTiers(mapPrismaSite(site), tiers, appliedTier, null, contractedCapacityKwpForTier);
+  return calculateSiteWithAllTiers(mapPrismaSite(site), tiers, appliedTier, month, contractedCapacityKwpForTier);
 }
 
 async function refreshUnlockedAppGeneratedSnapshotsForSite(siteId: string) {
@@ -489,8 +493,10 @@ export async function getSpvMonthlyReport(month?: string | null, contractIdInput
         systemSizeKwp: snapshot.systemSizeKwp,
         siteFixedCostsAnnual: snapshot.siteFixedCostsAnnual,
         variableCostAnnual: snapshot.variableCostAnnual,
+        annualFee: snapshot.annualFee,
         expectedAmount: snapshot.expectedAmount,
         invoicedAmount: snapshot.invoicedAmount,
+        billingPortfolio: snapshot.siteId ? linkedSitesById.get(snapshot.siteId)?.billingPortfolio ?? null : null,
         sourcePayload: snapshot.sourcePayload,
       })),
       selectedMonth,

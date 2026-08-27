@@ -21,7 +21,14 @@ export async function GET(
       );
     }
     
-    const sitesWithCalcs = await listSites({ spvCode: code, contractId });
+    // An SPV can hold both Core and Eden sites while they share a contract. Scope the invoice to
+    // the billing portfolio the caller opened so it ties back to the /spvs row it came from.
+    const requestedPortfolio = request.nextUrl.searchParams.get('portfolio');
+    const billingPortfolio = requestedPortfolio === 'EDEN' || requestedPortfolio === 'CORE' ? requestedPortfolio : null;
+    const allSpvSites = await listSites({ spvCode: code, contractId });
+    const sitesWithCalcs = billingPortfolio
+      ? allSpvSites.filter((site) => site.billingPortfolio === billingPortfolio)
+      : allSpvSites;
     
     const contractedSites = sitesWithCalcs.filter(s => s.contractStatus === 'Contracted' || s.contractStatus === 'Yes');
     const totalMonthlyFee = contractedSites.reduce((sum, s) => sum + s.monthlyFee, 0);
@@ -29,6 +36,7 @@ export async function GET(
     const response = {
       code: spv.code,
       name: spv.name,
+      billingPortfolio,
       sites: sitesWithCalcs,
       summary: {
         totalSites: sitesWithCalcs.length,

@@ -62,10 +62,10 @@ const exampleSites = [
   },
 ];
 
+// Standing rate for all sites. The superseded capacity bands are no longer seeded;
+// existing rows are retired by prisma/migrate-standard-rate.ts.
 const defaultRateTiers = [
-  { tierName: '<20MW', minCapacityMW: 0, maxCapacityMW: 20, ratePerKwp: 2.0 },
-  { tierName: '20-30MW', minCapacityMW: 20, maxCapacityMW: 30, ratePerKwp: 1.8 },
-  { tierName: '30-40MW', minCapacityMW: 30, maxCapacityMW: 40, ratePerKwp: 1.7 },
+  { tierName: 'Standard', minCapacityMW: 0, maxCapacityMW: null, ratePerKwp: 1.7 },
 ];
 
 async function main() {

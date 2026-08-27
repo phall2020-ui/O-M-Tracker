@@ -121,6 +121,7 @@ export interface PortfolioSummary {
   totalCapacityKwp: number;
   contractedCapacityKwp: number;
   currentTier: string;
+  currentTierRatePerKwp: number;
   totalMonthlyFee: number;
   correctiveDaysAllowed: number;
   sitesBySpv: Record<string, number>;

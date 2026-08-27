@@ -1,11 +1,30 @@
 import { BillingPortfolioBreakdown, BillingPortfolioCode, Site, SiteWithCalculations, RateTier, PortfolioSummary, SitePricingBreakdown } from '@/types';
 
-// Default rate tiers matching the spreadsheet
-export const DEFAULT_RATE_TIERS: RateTier[] = [
+// Standing portfolio rate. All sites price at this rate regardless of portfolio capacity.
+export const STANDARD_RATE_PER_KWP = 1.7;
+
+export const STANDARD_RATE_TIER: RateTier = {
+  id: 'standard',
+  contractId: 'DEFAULT',
+  tierName: 'Standard',
+  minCapacityMW: 0,
+  maxCapacityMW: null,
+  ratePerKwp: STANDARD_RATE_PER_KWP,
+};
+
+// Superseded capacity-banded tiers. Kept so historical billing months and the greyed-out
+// scenario comparison still resolve their rates. Never selected for new pricing.
+export const LEGACY_RATE_TIERS: RateTier[] = [
   { id: '1', contractId: 'DEFAULT', tierName: '<20MW', minCapacityMW: 0, maxCapacityMW: 20, ratePerKwp: 2.0 },
   { id: '2', contractId: 'DEFAULT', tierName: '20-30MW', minCapacityMW: 20, maxCapacityMW: 30, ratePerKwp: 1.8 },
   { id: '3', contractId: 'DEFAULT', tierName: '30-40MW', minCapacityMW: 30, maxCapacityMW: 40, ratePerKwp: 1.7 },
 ];
+
+export const DEFAULT_RATE_TIERS: RateTier[] = [STANDARD_RATE_TIER];
+
+export function isLegacyTierName(tierName: string): boolean {
+  return LEGACY_RATE_TIERS.some((tier) => tier.tierName === tierName);
+}
 
 export function calculateSiteFixedCosts(site: Site): number {
   return site.pmCost + site.cctvCost + site.cleaningCost + (site.additionalCostAnnual || 0);
@@ -42,8 +61,14 @@ export function determinePortfolioTier(totalCapacityMW: number, tiers: RateTier[
   return tiers[tiers.length - 1];
 }
 
-function tierByName(tiers: RateTier[], name: string, fallbackIndex: number): RateTier {
-  return tiers.find(t => t.tierName === name) || tiers[fallbackIndex] || tiers[0];
+// Resolves a named tier for the scenario comparison table. Falls back to the superseded
+// tier definitions by name rather than by list position, so the comparison keeps its meaning
+// once a contract only has the standard rate active.
+function scenarioTier(tiers: RateTier[], name: string): RateTier {
+  return tiers.find(t => t.tierName === name)
+    || LEGACY_RATE_TIERS.find(t => t.tierName === name)
+    || tiers[0]
+    || STANDARD_RATE_TIER;
 }
 
 export function isContractedStatus(status: string): boolean {
@@ -210,9 +235,9 @@ export function calculateSiteWithAllTiers(
   const isContracted = isContractedStatus(site.contractStatus);
   
   // Calculate for each tier
-  const tier20MW = tierByName(tiers, '<20MW', 0);
-  const tier30MW = tierByName(tiers, '20-30MW', 1);
-  const tier40MW = tierByName(tiers, '30-40MW', 2);
+  const tier20MW = scenarioTier(tiers, '<20MW');
+  const tier30MW = scenarioTier(tiers, '20-30MW');
+  const tier40MW = scenarioTier(tiers, '30-40MW');
   
   const portfolioCost_20MW = calculatePortfolioCost(site.systemSizeKwp, tier20MW.ratePerKwp);
   const portfolioCost_30MW = calculatePortfolioCost(site.systemSizeKwp, tier30MW.ratePerKwp);
@@ -228,7 +253,7 @@ export function calculateSiteWithAllTiers(
   const feePerKwp_40MW = calculateFeePerKwp(fixedFee_40MW, site.systemSizeKwp, isContracted);
   
   // Monthly fee based on the active portfolio tier, which is derived from contracted capacity only.
-  const selectedTier = appliedTier || tier20MW;
+  const selectedTier = appliedTier || determinePortfolioTier(0, tiers);
   const monthlyFee = isContracted ? calculateMonthlyFee(calculateAnnualFeeForTierForMonth(site, selectedTier, month)) : 0;
   
   return {
@@ -328,6 +353,7 @@ export function calculatePortfolioSummary(sites: Site[], tiers: RateTier[] = DEF
     totalCapacityKwp,
     contractedCapacityKwp,
     currentTier: currentTier.tierName,
+    currentTierRatePerKwp: currentTier.ratePerKwp,
     totalMonthlyFee,
     correctiveDaysAllowed,
     sitesBySpv,

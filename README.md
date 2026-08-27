@@ -162,10 +162,27 @@ The app replicates the spreadsheet formulas:
 - **Fee per kWp** = Fixed Fee / System Size (only if contracted)
 - **Monthly Fee** = Fixed Fee / 12
 
-Rate tiers:
-- <20MW: £2.00/kWp
-- 20-30MW: £1.80/kWp  
-- 30-40MW: £1.70/kWp
+Portfolio rate:
+- **Standard: £1.70/kWp** — applied to every site regardless of portfolio capacity.
+
+The capacity-banded tiers (<20MW £2.00, 20-30MW £1.80, 30-40MW £1.70) are superseded. They are
+kept in `LEGACY_RATE_TIERS` and shown greyed out in Settings and on site detail pages so
+historical billing snapshots that reference them by name stay readable. Billing months already
+generated keep the rate they were generated at.
+
+## Data migrations
+
+Both scripts are dry-run by default and print their plan; pass `--apply` to write, and
+`--revert --apply` to undo.
+
+```bash
+npm run db:standard-rate      # retire capacity bands, put every contract on £1.70/kWp
+npm run db:eden-contractor    # move Eden sites out of Clearsol into their own Eden contract
+```
+
+`db:eden-contractor` creates the `EDEN` contractor and `EDEN_O_M` contract, mirrors the SPVs the
+Eden sites use, and reassigns those sites plus their billing snapshots, adjustments and CM work.
+Set the Eden contract's Notion billing database ID in Settings before running a Notion sync for it.
 
 ## Tech Stack
 

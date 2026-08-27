@@ -1,6 +1,8 @@
 import ExcelJS from 'exceljs';
 import { SiteWithCalculations } from '@/types';
-import { determinePortfolioTier } from './calculations';
+import { calculateAnnualFeeForTierForMonth, calculateSiteFixedCosts, DEFAULT_RATE_TIERS, determinePortfolioTier, isContractedStatus } from './calculations';
+import { currentMonth } from './month-periods';
+import type { RateTier } from '@/types';
 
 const PORTFOLIO_HEADERS = [
   'Site Name',
@@ -204,20 +206,21 @@ function pmFrequency(site: SiteWithCalculations): string {
   return `${visits} visits/year`;
 }
 
-function buildRows(sites: SiteWithCalculations[]): ExportRow[] {
+function buildRows(sites: SiteWithCalculations[], tiers: RateTier[] = DEFAULT_RATE_TIERS, month: string = currentMonth()): ExportRow[] {
   const contractedCapacityKwp = sites
-    .filter((site) => site.contractStatus === 'Contracted' || site.contractStatus === 'Yes')
+    .filter((site) => isContractedStatus(site.contractStatus))
     .reduce((sum, site) => sum + site.systemSizeKwp, 0);
-  const tier = determinePortfolioTier(contractedCapacityKwp / 1000);
+  const tier = determinePortfolioTier(contractedCapacityKwp / 1000, tiers);
 
   return sites
     .slice()
     .sort((a, b) => a.systemSizeKwp - b.systemSizeKwp || a.name.localeCompare(b.name))
     .map((site) => {
-      const isActive = site.contractStatus === 'Contracted' || site.contractStatus === 'Yes';
-      const siteFixedCosts = site.pmCost + site.cctvCost + site.cleaningCost + (site.additionalCostAnnual || 0);
+      const isActive = isContractedStatus(site.contractStatus);
+      const siteFixedCosts = calculateSiteFixedCosts(site);
       const variableCost = isActive ? site.systemSizeKwp * tier.ratePerKwp : 0;
-      const annualFee = isActive ? siteFixedCosts + variableCost + ((site.additionalCostMonthly || 0) * 12) : 0;
+      // Priced through the shared helper so the additional-monthly-cost window matches /spvs.
+      const annualFee = calculateAnnualFeeForTierForMonth(site, tier, month);
       const monthlyFee = annualFee / 12;
       const unitCost = site.systemSizeKwp > 0 ? annualFee / site.systemSizeKwp : 0;
 
@@ -345,8 +348,8 @@ function setSheetFormats(
   }
 }
 
-export function buildClearsolExportWorkbook(sites: SiteWithCalculations[]): ExcelJS.Workbook {
-  const exportRows = buildRows(sites);
+export function buildClearsolExportWorkbook(sites: SiteWithCalculations[], tiers?: RateTier[], month?: string): ExcelJS.Workbook {
+  const exportRows = buildRows(sites, tiers, month);
   const smallRows = exportRows.filter((row) => row.site.systemSizeKwp < 200);
   const standardRows = exportRows.filter((row) => row.site.systemSizeKwp >= 200);
   const totalAnnual = exportRows.reduce((sum, row) => sum + row.annualFee, 0);
@@ -397,8 +400,8 @@ export function buildClearsolExportWorkbook(sites: SiteWithCalculations[]): Exce
   return workbook;
 }
 
-export async function writeClearsolExportBuffer(sites: SiteWithCalculations[]): Promise<Buffer> {
-  const buffer = await buildClearsolExportWorkbook(sites).xlsx.writeBuffer();
+export async function writeClearsolExportBuffer(sites: SiteWithCalculations[], tiers?: RateTier[], month?: string): Promise<Buffer> {
+  const buffer = await buildClearsolExportWorkbook(sites, tiers, month).xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
 
@@ -448,9 +451,11 @@ export function normalizeCustomExportFields(fields: string[]): CustomExportField
 
 export function buildCustomSitesExportWorkbook(
   sites: SiteWithCalculations[],
-  selectedFieldKeys: CustomExportFieldKey[]
+  selectedFieldKeys: CustomExportFieldKey[],
+  tiers?: RateTier[],
+  month?: string
 ): ExcelJS.Workbook {
-  const exportRows = buildRows(sites);
+  const exportRows = buildRows(sites, tiers, month);
   const selected = selectedFieldKeys
     .map((key) => CUSTOM_EXPORT_FIELDS.find((field) => field.key === key))
     .filter((field): field is CustomExportField => Boolean(field));
@@ -485,8 +490,10 @@ export function buildCustomSitesExportWorkbook(
 
 export async function writeCustomSitesExportBuffer(
   sites: SiteWithCalculations[],
-  selectedFieldKeys: CustomExportFieldKey[]
+  selectedFieldKeys: CustomExportFieldKey[],
+  tiers?: RateTier[],
+  month?: string
 ): Promise<Buffer> {
-  const buffer = await buildCustomSitesExportWorkbook(sites, selectedFieldKeys).xlsx.writeBuffer();
+  const buffer = await buildCustomSitesExportWorkbook(sites, selectedFieldKeys, tiers, month).xlsx.writeBuffer();
   return Buffer.from(buffer);
 }

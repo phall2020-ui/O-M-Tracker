@@ -141,11 +141,11 @@ describe('billing generation', () => {
 
     expect(may.contractId).toBe('contract-1');
     expect(may.sourcePayload).toContain('"contract":{"id":"contract-1"');
-    expect(may.annualFee).toBe(200 + 1000 * 2 + 25 * 12);
-    expect(may.expectedAmount).toBeCloseTo((200 + 1000 * 2) / 12 + 25, 2);
+    expect(may.annualFee).toBe(200 + 1000 * 1.7 + 25 * 12);
+    expect(may.expectedAmount).toBeCloseTo((200 + 1000 * 1.7) / 12 + 25, 2);
     expect(may.sourcePayload).toContain('"additionalCostMonthlyComment":"Temporary monitoring"');
-    expect(june.annualFee).toBe(200 + 1000 * 2);
-    expect(june.expectedAmount).toBeCloseTo((200 + 1000 * 2) / 12, 2);
+    expect(june.annualFee).toBe(200 + 1000 * 1.7);
+    expect(june.expectedAmount).toBeCloseTo((200 + 1000 * 1.7) / 12, 2);
   });
 
   it('builds refresh data for unlocked app-generated snapshots', () => {

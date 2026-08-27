@@ -649,6 +649,28 @@ textarea {
   margin-top: 3px;
 }
 
+/* Superseded capacity-banded rate tiers, kept visible for audit but no longer applied */
+.tier-superseded td,
+tr.tier-superseded td {
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.tier-applied td {
+  font-weight: 700;
+}
+
+.tier-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.badge-superseded {
+  background: #f3f4f6;
+  color: var(--text-muted);
+}
+
 /* Badge */
 .badge {
   padding: 4px 10px;

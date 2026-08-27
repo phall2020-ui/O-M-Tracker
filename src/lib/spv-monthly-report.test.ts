@@ -61,7 +61,7 @@ describe('SPV monthly report', () => {
     expect(report.rows[0].siteCount).toBe(2);
     expect(report.rows[0].contractedSiteCount).toBe(1);
     expect(report.rows[0].pendingSiteCount).toBe(1);
-    expect(report.rows[0].monthlyFee).toBeCloseTo(183.33, 2);
+    expect(report.rows[0].monthlyFee).toBeCloseTo(158.33, 2);
     expect(report.rows[0].correctiveDaysAllowed).toBe(0);
     expect(report.totals.contractedSiteCount).toBe(1);
   });
@@ -89,8 +89,8 @@ describe('SPV monthly report', () => {
 
     expect(report.totals.contractedCapacityKwp).toBe(21_000);
     expect(report.totals.pendingSiteCount).toBe(1);
-    expect(report.totals.variableCostAnnual).toBe(37_800);
-    expect(report.totals.monthlyFee).toBeCloseTo(3183.33, 2);
+    expect(report.totals.variableCostAnnual).toBe(35_700);
+    expect(report.totals.monthlyFee).toBeCloseTo(3008.33, 2);
   });
 
   it('groups sites without an SPV into an unassigned row', () => {
@@ -100,7 +100,7 @@ describe('SPV monthly report', () => {
     expect(report.rows[0].spvName).toBe('Unassigned');
   });
 
-  it('separates Core and Eden billing while pricing both from combined contracted capacity', () => {
+  it('separates Core and Eden billing while pricing both at the standard rate', () => {
     const report = buildSpvMonthlyReport(
       [
         site({ id: 'core', billingPortfolio: 'CORE', spvCode: 'OS2', systemSizeKwp: 15_000, siteFixedCosts: 200 }),
@@ -114,13 +114,13 @@ describe('SPV monthly report', () => {
       expect.objectContaining({
         billingPortfolio: 'CORE',
         contractedCapacityKwp: 15_000,
-        monthlyFee: (200 + 15_000 * 1.8) / 12,
+        monthlyFee: (200 + 15_000 * 1.7) / 12,
         correctiveDaysAllowed: 1,
       }),
       expect.objectContaining({
         billingPortfolio: 'EDEN',
         contractedCapacityKwp: 6_000,
-        monthlyFee: (200 + 6_000 * 1.8) / 12,
+        monthlyFee: (200 + 6_000 * 1.7) / 12,
         correctiveDaysAllowed: 0,
       }),
     ]);
@@ -158,8 +158,8 @@ describe('SPV monthly report', () => {
     );
 
     expect(report.rows[0].siteFixedCostsAnnual).toBe(320);
-    expect(report.rows[0].annualFee).toBe(320 + 1_000 * 2 + 25 * 12);
-    expect(report.rows[0].monthlyFee).toBeCloseTo((320 + 1_000 * 2) / 12 + 25, 2);
+    expect(report.rows[0].annualFee).toBe(320 + 1_000 * 1.7 + 25 * 12);
+    expect(report.rows[0].monthlyFee).toBeCloseTo((320 + 1_000 * 1.7) / 12 + 25, 2);
   });
 
   it('excludes monthly additional costs outside the configured month range', () => {
@@ -176,7 +176,7 @@ describe('SPV monthly report', () => {
       '2026-06'
     );
 
-    expect(report.rows[0].annualFee).toBe(200 + 1_000 * 2);
-    expect(report.rows[0].monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12, 2);
+    expect(report.rows[0].annualFee).toBe(200 + 1_000 * 1.7);
+    expect(report.rows[0].monthlyFee).toBeCloseTo((200 + 1_000 * 1.7) / 12, 2);
   });
 });
