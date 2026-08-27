@@ -79,6 +79,12 @@ export function isContractedStatus(status: string): boolean {
   return ['Contracted', 'CONTRACTED', 'Yes', 'YES', 'Active', 'ACTIVE'].includes(status);
 }
 
+export function isAcceptedContractedSite(
+  site: Pick<Site, 'acceptedByOm' | 'contractStatus'>
+): boolean {
+  return site.acceptedByOm === true && isContractedStatus(site.contractStatus);
+}
+
 export function siteBillingStartDate(site: { actualPacDate?: string | null; onboardDate: string | null }): string | null {
   return site.onboardDate || site.actualPacDate || null;
 }
@@ -89,17 +95,23 @@ export function isSiteVisibleByMonthEnd(site: { actualPacDate?: string | null; o
   return new Date(`${startDate.slice(0, 10)}T00:00:00.000Z`) <= monthEnd;
 }
 
+export function isOperationalPortfolioSite(
+  site: Pick<Site, 'acceptedByOm' | 'contractStatus' | 'onboardDate'>
+): boolean {
+  return isAcceptedContractedSite(site) && Boolean(site.onboardDate);
+}
+
 export function contractedCapacityForTier(
-  sites: Array<Pick<Site, 'contractStatus' | 'systemSizeKwp' | 'onboardDate'> & { actualPacDate?: string | null }>,
+  sites: Array<Pick<Site, 'acceptedByOm' | 'contractStatus' | 'systemSizeKwp' | 'onboardDate'> & { actualPacDate?: string | null }>,
   monthEnd?: Date | null
 ): number {
   return sites
-    .filter((site) => isContractedStatus(site.contractStatus) && isSiteVisibleByMonthEnd(site, monthEnd))
+    .filter((site) => isAcceptedContractedSite(site) && isSiteVisibleByMonthEnd(site, monthEnd))
     .reduce((sum, site) => sum + site.systemSizeKwp, 0);
 }
 
 export function currentPortfolioTier(
-  sites: Array<Pick<Site, 'contractStatus' | 'systemSizeKwp' | 'onboardDate'> & { actualPacDate?: string | null }>,
+  sites: Array<Pick<Site, 'acceptedByOm' | 'contractStatus' | 'systemSizeKwp' | 'onboardDate'> & { actualPacDate?: string | null }>,
   tiers: RateTier[] = DEFAULT_RATE_TIERS,
   monthEnd?: Date | null
 ): RateTier {
@@ -130,7 +142,7 @@ export function isAdditionalMonthlyCostActive(site: Site, month?: string | null)
 }
 
 export function calculateAnnualFeeForTierForMonth(site: Site, tier: RateTier, month?: string | null): number {
-  if (!isContractedStatus(site.contractStatus)) return 0;
+  if (!isAcceptedContractedSite(site)) return 0;
   return calculateFixedFee(calculateSiteFixedCosts(site), calculatePortfolioCost(site.systemSizeKwp, tier.ratePerKwp)) + calculateAdditionalMonthlyAnnual(site, month);
 }
 
@@ -150,7 +162,7 @@ export function buildSitePricingBreakdown(
   contractedCapacityKwpForTier: number,
   month?: string | null
 ): SitePricingBreakdown {
-  const isBillable = isContractedStatus(site.contractStatus);
+  const isBillable = isAcceptedContractedSite(site);
   const siteFixedCostsAnnual = calculateSiteFixedCosts(site);
   const billablePortfolioCostAnnual = calculatePortfolioCost(site.systemSizeKwp, appliedTier.ratePerKwp);
   const billableAdditionalMonthlyAnnual = calculateAdditionalMonthlyAnnual(site, month);
@@ -158,14 +170,21 @@ export function buildSitePricingBreakdown(
   const additionalMonthlyAnnual = isBillable ? billableAdditionalMonthlyAnnual : 0;
   const annualFee = isBillable ? calculateAnnualFeeForTierForMonth(site, appliedTier, month) : 0;
   const monthlyFee = isBillable ? calculateMonthlyFee(annualFee) : 0;
-  const nonBillableNote = isBillable ? null : 'Excluded because site is not contracted';
+  const awaitingOmAcceptance = isContractedStatus(site.contractStatus) && !site.acceptedByOm;
+  const nonBillableNote = isBillable
+    ? null
+    : awaitingOmAcceptance
+      ? 'Excluded until accepted by O&M'
+      : 'Excluded because site is not contracted';
 
   return {
     isBillable,
     reviewStatus: isBillable ? 'VERIFIED' : 'NEEDS_REVIEW',
     reviewReason: isBillable
       ? 'Contracted site priced using active portfolio tier'
-      : `Not billable while contract status is ${site.contractStatus}`,
+      : awaitingOmAcceptance
+        ? 'Awaiting O&M acceptance'
+        : `Not billable while contract status is ${site.contractStatus}`,
     appliedTierName: appliedTier.tierName,
     appliedTierRatePerKwp: appliedTier.ratePerKwp,
     contractedCapacityKwpForTier,
@@ -236,7 +255,7 @@ export function calculateSiteWithAllTiers(
   contractedCapacityKwpForTier?: number
 ): SiteWithCalculations {
   const siteFixedCosts = calculateSiteFixedCosts(site);
-  const isContracted = isContractedStatus(site.contractStatus);
+  const isContracted = isAcceptedContractedSite(site);
   
   // Calculate for each tier
   const tier20MW = scenarioTier(tiers, '<20MW');
@@ -313,7 +332,7 @@ export function buildBillingPortfolioBreakdowns(sites: Site[], tier: RateTier): 
     row.siteCount += 1;
     row.totalCapacityKwp += site.systemSizeKwp;
 
-    if (isContractedStatus(site.contractStatus)) {
+    if (isAcceptedContractedSite(site)) {
       const siteFixedCosts = calculateSiteFixedCosts(site);
       const annualFee = calculateAnnualFeeForTier(site, tier);
       row.contractedSiteCount += 1;
@@ -331,7 +350,7 @@ export function buildBillingPortfolioBreakdowns(sites: Site[], tier: RateTier): 
 }
 
 export function calculatePortfolioSummary(sites: Site[], tiers: RateTier[] = DEFAULT_RATE_TIERS): PortfolioSummary {
-  const contractedSites = sites.filter(s => isContractedStatus(s.contractStatus));
+  const contractedSites = sites.filter(isAcceptedContractedSite);
   const totalCapacityKwp = sites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
   const contractedCapacityKwp = contractedSites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
   

@@ -43,6 +43,7 @@ export interface Site {
   systemSizeKwp: number;
   siteType: SiteType;
   contractStatus: ContractStatus;
+  acceptedByOm: boolean;
   onboardDate: string | null;
   forecastPacDate: string | null;
   actualPacDate: string | null;
@@ -220,6 +221,7 @@ export interface SiteFormData {
   systemSizeKwp: number;
   siteType: SiteType;
   contractStatus: ContractStatus;
+  acceptedByOm?: boolean;
   onboardDate: string | null;
   forecastPacDate?: string | null;
   actualPacDate?: string | null;

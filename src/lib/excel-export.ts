@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { SiteWithCalculations } from '@/types';
-import { calculateAnnualFeeForTierForMonth, calculateSiteFixedCosts, DEFAULT_RATE_TIERS, determinePortfolioTier, isContractedStatus } from './calculations';
+import { calculateAnnualFeeForTierForMonth, calculateSiteFixedCosts, DEFAULT_RATE_TIERS, determinePortfolioTier, isAcceptedContractedSite, isOperationalPortfolioSite } from './calculations';
 import { currentMonth } from './month-periods';
 import type { RateTier } from '@/types';
 
@@ -208,7 +208,7 @@ function pmFrequency(site: SiteWithCalculations): string {
 
 function buildRows(sites: SiteWithCalculations[], tiers: RateTier[] = DEFAULT_RATE_TIERS, month: string = currentMonth()): ExportRow[] {
   const contractedCapacityKwp = sites
-    .filter((site) => isContractedStatus(site.contractStatus))
+    .filter(isAcceptedContractedSite)
     .reduce((sum, site) => sum + site.systemSizeKwp, 0);
   const tier = determinePortfolioTier(contractedCapacityKwp / 1000, tiers);
 
@@ -216,7 +216,7 @@ function buildRows(sites: SiteWithCalculations[], tiers: RateTier[] = DEFAULT_RA
     .slice()
     .sort((a, b) => a.systemSizeKwp - b.systemSizeKwp || a.name.localeCompare(b.name))
     .map((site) => {
-      const isActive = isContractedStatus(site.contractStatus);
+      const isActive = isAcceptedContractedSite(site);
       const siteFixedCosts = calculateSiteFixedCosts(site);
       const variableCost = isActive ? site.systemSizeKwp * tier.ratePerKwp : 0;
       // Priced through the shared helper so the additional-monthly-cost window matches /spvs.
@@ -407,7 +407,7 @@ export async function writeClearsolExportBuffer(sites: SiteWithCalculations[], t
 
 export function buildPipelineCostBuildUpWorkbook(sites: SiteWithCalculations[]): ExcelJS.Workbook {
   const pipelineSites = sites
-    .filter((site) => site.contractStatus !== 'Contracted' && site.contractStatus !== 'Yes')
+    .filter((site) => !isOperationalPortfolioSite(site))
     .slice()
     .sort((a, b) => a.forecastPacDate?.localeCompare(b.forecastPacDate || '') || a.name.localeCompare(b.name));
   const workbook = new ExcelJS.Workbook();

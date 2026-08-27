@@ -17,6 +17,7 @@ function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
     systemSizeKwp: 1000,
     siteType: 'Rooftop',
     contractStatus: 'Contracted',
+    acceptedByOm: true,
     onboardDate: '2026-05-01',
     pmCost: 120,
     pmDaysOnSite: 0,
@@ -80,6 +81,10 @@ describe('billing generation', () => {
     expect(isEligibleForBilling(site({ contractStatus: 'Awaiting PAC', onboardDate: '2026-05-01' }), '2026-05')).toBe(false);
     expect(isEligibleForBilling(site({ contractStatus: 'Contracted', onboardDate: null }), '2026-05')).toBe(false);
     expect(isEligibleForBilling(site({ contractStatus: 'Contracted', onboardDate: '2026-06-01' }), '2026-05')).toBe(false);
+  });
+
+  it('does not bill a contracted site before O&M accepts it', () => {
+    expect(isEligibleForBilling(site({ acceptedByOm: false }), '2026-05')).toBe(false);
   });
 
   it('freezes calculated site values into immutable snapshot input', () => {

@@ -34,7 +34,7 @@ function isVisibleInMonth(site: SiteWithCalculations, monthEnd: Date): boolean {
 }
 
 function isContractedInMonth(site: SiteWithCalculations, monthEnd: Date): boolean {
-  return (site.contractStatus === 'Contracted' || site.contractStatus === 'Yes') && isVisibleInMonth(site, monthEnd);
+  return site.acceptedByOm && (site.contractStatus === 'Contracted' || site.contractStatus === 'Yes') && isVisibleInMonth(site, monthEnd);
 }
 
 function finalizeRow(row: SpvMonthlyRow): SpvMonthlyRow {

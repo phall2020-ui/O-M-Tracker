@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteFormData, SiteWithCalculations, SPV } from '@/types';
-import { formatCurrency, formatNumber } from '@/lib/calculations';
+import { formatCurrency, formatNumber, isOperationalPortfolioSite } from '@/lib/calculations';
 import { CheckSquare, Download, Plus, Search, Settings2, Square } from 'lucide-react';
 import Link from 'next/link';
 import { canEditSites, useCurrentUser } from '@/lib/use-current-user';
@@ -290,7 +290,7 @@ function SitesContent() {
   };
 
   const activeSites = useMemo(
-    () => sites.filter((site) => Boolean(site.onboardDate) && (site.contractStatus === 'Contracted' || site.contractStatus === 'Yes')),
+    () => sites.filter(isOperationalPortfolioSite),
     [sites]
   );
 

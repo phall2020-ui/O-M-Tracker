@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Clock, Download, FileText, Plus, Search, Zap } from 'lucide-react';
 import { SiteFormData, SiteWithCalculations, SPV } from '@/types';
-import { calculatePipelinePortfolioCostAnnual, formatCurrency, formatNumber } from '@/lib/calculations';
+import { calculatePipelinePortfolioCostAnnual, formatCurrency, formatNumber, isContractedStatus, isOperationalPortfolioSite } from '@/lib/calculations';
 import { canEditSites, useCurrentUser } from '@/lib/use-current-user';
 import { ErrorPanel } from '@/components/ui/ErrorPanel';
 import { useContractQuery } from '@/lib/use-contract-query';
@@ -28,7 +28,7 @@ function PipelineContent() {
       const data = await res.json();
 
       if (data.success) {
-        setSites(data.data.filter((site: SiteWithCalculations) => site.contractStatus !== 'Contracted' && site.contractStatus !== 'Yes'));
+        setSites(data.data.filter((site: SiteWithCalculations) => !isOperationalPortfolioSite(site)));
       } else {
         setError(data.error || 'Failed to fetch pipeline sites');
       }
@@ -56,7 +56,7 @@ function PipelineContent() {
 
   const updateVisibleSites = (updatedSite: SiteWithCalculations) => {
     setSites((prev) => {
-      if (isContractedStatus(updatedSite.contractStatus)) {
+      if (isOperationalPortfolioSite(updatedSite)) {
         return prev.filter((site) => site.id !== updatedSite.id);
       }
       return prev.map((site) => site.id === updatedSite.id ? updatedSite : site);
@@ -82,10 +82,8 @@ function PipelineContent() {
     return Number(value.toFixed(decimals));
   };
 
-  const isContractedStatus = (status: string | null | undefined) => status === 'Contracted' || status === 'Yes';
-  const inlineContractStatus = (site: SiteWithCalculations) => String(inlineValue(site, 'contractStatus'));
   const inlineDateField = (site: SiteWithCalculations): 'onboardDate' | 'forecastPacDate' => (
-    isContractedStatus(inlineContractStatus(site))
+    isContractedStatus(site.contractStatus)
       ? 'onboardDate'
       : 'forecastPacDate'
   );
@@ -125,13 +123,6 @@ function PipelineContent() {
     void saveInlineSite(site, { [field]: normalizedValue } as Partial<SiteFormData>);
   };
 
-  const normalizeDateForInput = (value: string | Date | null | undefined) => {
-    if (!value) return '';
-    const date = typeof value === 'string' ? new Date(value) : value;
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toISOString().slice(0, 10);
-  };
-
   const isSiteDirty = (site: SiteWithCalculations) => {
     const edits = inlineEdits[site.id];
     if (!edits) return false;
@@ -149,10 +140,6 @@ function PipelineContent() {
     if (!edits) return;
 
     const contractStatus = (edits.contractStatus || site.contractStatus) as SiteFormData['contractStatus'];
-    const isContracted = isContractedStatus(contractStatus);
-    const dateValue = isContracted
-      ? (edits.onboardDate ?? site.onboardDate ?? edits.forecastPacDate ?? site.forecastPacDate)
-      : (edits.forecastPacDate ?? edits.onboardDate ?? site.forecastPacDate ?? site.onboardDate);
 
     setSavingSiteId(site.id);
     try {
@@ -161,8 +148,9 @@ function PipelineContent() {
         systemSizeKwp: Number(edits.systemSizeKwp ?? site.systemSizeKwp),
         siteType: edits.siteType ?? site.siteType,
         contractStatus,
-        onboardDate: isContracted ? dateValue || null : null,
-        forecastPacDate: isContracted ? null : dateValue || null,
+        acceptedByOm: edits.acceptedByOm ?? site.acceptedByOm,
+        onboardDate: edits.onboardDate ?? site.onboardDate,
+        forecastPacDate: edits.forecastPacDate ?? site.forecastPacDate,
         actualPacDate: site.actualPacDate,
         pmCost: site.pmCost,
         pmDaysOnSite: site.pmDaysOnSite,
@@ -202,36 +190,6 @@ function PipelineContent() {
     }
   };
 
-  const handlePipelineStatusChange = async (site: SiteWithCalculations, status: string) => {
-    if (!isContractedStatus(status)) {
-      await saveInlineSite(site, { contractStatus: status as SiteFormData['contractStatus'] });
-      return;
-    }
-
-    const suggestedDate = normalizeDateForInput(
-      inlineEdits[site.id]?.onboardDate ||
-      site.onboardDate ||
-      inlineEdits[site.id]?.forecastPacDate ||
-      site.forecastPacDate
-    );
-    const onboardDate = window.prompt(
-      'Enter onboard date for this contracted site (YYYY-MM-DD). The forecast PAC date will be cleared.',
-      suggestedDate
-    );
-
-    if (onboardDate === null) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(onboardDate) || Number.isNaN(new Date(onboardDate).getTime())) {
-      alert('Please enter a valid onboard date in YYYY-MM-DD format before moving this site to Sites.');
-      return;
-    }
-
-    await saveInlineSite(site, {
-      contractStatus: 'Contracted',
-      onboardDate,
-      forecastPacDate: null,
-    });
-  };
-
   const filteredSites = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return sites;
@@ -269,7 +227,7 @@ function PipelineContent() {
       <div className="page-header">
         <span className="eyebrow">Portfolio pipeline</span>
         <h1>Pipeline</h1>
-        <p>Sites awaiting contract or PAC. These are excluded from contracted billing until the site is onboarded.</p>
+        <p>Sites awaiting contract, PAC or O&M acceptance. A site enters the operational portfolio only after O&M acceptance is recorded.</p>
       </div>
 
       <div className="content">
@@ -346,7 +304,7 @@ function PipelineContent() {
           <div className="sites-edit-header">
             <div>
               <h2>Pipeline Sites</h2>
-              <p>Pipeline changes auto-save when you leave a field; dropdown changes save immediately.</p>
+              <p>Status is read-only. Other changes auto-save, and O&M acceptance controls entry into the operational portfolio.</p>
             </div>
             <span>{allowSiteEdits ? (savingSiteId ? 'Saving' : 'Auto-save') : 'Pipeline'}</span>
           </div>
@@ -355,6 +313,7 @@ function PipelineContent() {
             <table className="sites-edit-table pipeline-edit-table">
               <colgroup>
                 <col className="sites-col-name" />
+                <col className="sites-col-status" />
                 <col className="sites-col-status" />
                 <col className="sites-col-date" />
                 <col className="sites-col-spv" />
@@ -369,6 +328,7 @@ function PipelineContent() {
                 <tr>
                   <th>Site</th>
                   <th>Status</th>
+                  <th>Accepted by O&amp;M</th>
                   <th>Forecast / Onboard</th>
                   <th>SPV</th>
                   <th>Type</th>
@@ -382,8 +342,8 @@ function PipelineContent() {
               <tbody>
                 {filteredSites.length === 0 ? (
                   <tr>
-                    <td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                      {search ? 'No pipeline sites match your search.' : 'No sites are currently awaiting PAC.'}
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      {search ? 'No pipeline sites match your search.' : 'No sites are currently awaiting contract, PAC or O&M acceptance.'}
                     </td>
                   </tr>
                 ) : (
@@ -404,19 +364,18 @@ function PipelineContent() {
                         )}
                       </td>
                       <td data-label="Status">
-                        {allowSiteEdits ? (
-                          <select
-                            className="inline-table-select inline-table-status"
-                            value={inlineContractStatus(site)}
-                            onChange={(event) => handlePipelineStatusChange(site, event.target.value)}
-                          >
-                            <option value="Awaiting PAC">Awaiting PAC</option>
-                            <option value="Awaiting Contract">Awaiting Contract</option>
-                            <option value="Contracted">Contracted</option>
-                          </select>
-                        ) : (
-                          <span className="status-badge status-no">{site.contractStatus === 'No' ? 'Awaiting PAC' : site.contractStatus}</span>
-                        )}
+                        <span className={`status-badge ${isContractedStatus(site.contractStatus) ? 'status-yes' : 'status-no'}`}>
+                          {site.contractStatus === 'No' ? 'Awaiting PAC' : site.contractStatus}
+                        </span>
+                      </td>
+                      <td data-label="Accepted by O&M" style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Accepted by O&M for ${site.name}`}
+                          checked={Boolean(site.acceptedByOm)}
+                          disabled={!allowSiteEdits || savingSiteId === site.id}
+                          onChange={(event) => void saveInlineSite(site, { acceptedByOm: event.target.checked })}
+                        />
                       </td>
                       <td data-label="Forecast / Onboard">
                         {allowSiteEdits ? (

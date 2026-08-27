@@ -11,6 +11,7 @@ function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
     systemSizeKwp: 100,
     siteType: 'Rooftop',
     contractStatus: 'Contracted',
+    acceptedByOm: true,
     forecastPacDate: null,
     actualPacDate: null,
     onboardDate: '2026-01-01',
@@ -219,12 +220,23 @@ describe('Clearsol Excel export', () => {
         portfolioCost_40MW: 510,
         fixedFee_40MW: 755,
       }),
+      site({
+        id: 'awaiting-om',
+        name: 'Contracted Awaiting O&M',
+        contractStatus: 'Contracted',
+        acceptedByOm: false,
+        onboardDate: '2026-08-01',
+      }),
     ]);
 
     expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Pipeline Cost Build-up']);
     expect(rowValues(workbook, 'Pipeline Cost Build-up', 1)).toContain('<20MW Total Site Cost (GBP/year)');
     expect(rowValues(workbook, 'Pipeline Cost Build-up', 1)).toContain('20-30MW Fee (GBP/kWp/year)');
-    expect(rowValues(workbook, 'Pipeline Cost Build-up', 2)).toEqual([
+    const rows = [
+      rowValues(workbook, 'Pipeline Cost Build-up', 2),
+      rowValues(workbook, 'Pipeline Cost Build-up', 3),
+    ];
+    expect(rows.find((row) => row[0] === 'Pipeline Export Site')).toEqual([
       'Pipeline Export Site',
       'Awaiting PAC',
       new Date('2026-08-14T00:00:00.000Z'),
@@ -253,5 +265,6 @@ describe('Clearsol Excel export', () => {
       62.92,
       2.52,
     ]);
+    expect(rows.map((row) => row[0])).toContain('Contracted Awaiting O&M');
   });
 });

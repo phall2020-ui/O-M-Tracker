@@ -172,12 +172,13 @@ generated keep the rate they were generated at.
 
 ## Data migrations
 
-Both scripts are dry-run by default and print their plan; pass `--apply` to write, and
+These scripts are dry-run by default and print their plan; pass `--apply` to write, and
 `--revert --apply` to undo.
 
 ```bash
 npm run db:standard-rate      # retire capacity bands, put every contract on £1.70/kWp
 npm run db:eden-contractor    # move Eden sites out of Clearsol into their own Eden contract
+npm run db:om-acceptance      # backfill O&M acceptance for existing contracted sites
 ```
 
 `db:eden-contractor` creates the `EDEN` contractor and `EDEN_O_M` contract, mirrors the SPVs the

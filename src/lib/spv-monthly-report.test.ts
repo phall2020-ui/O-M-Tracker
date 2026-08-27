@@ -10,6 +10,7 @@ function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
     systemSizeKwp: 1000,
     siteType: 'Rooftop',
     contractStatus: 'Contracted',
+    acceptedByOm: true,
     onboardDate: '2026-01-15',
     pmCost: 120,
     pmDaysOnSite: 0,

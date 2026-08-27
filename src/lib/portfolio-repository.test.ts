@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { activeRateTiers, deleteSiteRecord, getSpvMonthlyReport, listSpvs } from './portfolio-repository';
+import { activeRateTiers, deleteSiteRecord, getSpvMonthlyReport, listSpvs, updateSiteRecord } from './portfolio-repository';
 
 const prismaMock = vi.hoisted(() => ({
   auditLog: {
@@ -21,6 +21,8 @@ const prismaMock = vi.hoisted(() => ({
     delete: vi.fn(),
     findFirst: vi.fn(),
     findMany: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
   sPV: {
     findMany: vi.fn(),
@@ -132,6 +134,79 @@ describe('portfolio repository contract scoping', () => {
       include: { spv: true },
     });
     expect(prismaMock.site.delete).toHaveBeenCalledWith({ where: { id: 'site-1' } });
+  });
+
+  it('persists O&M acceptance without changing the site contract status', async () => {
+    const site = {
+      id: 'site-1',
+      contractId: 'contract-1',
+      name: 'Example Site',
+      systemSizeKwp: 1000,
+      siteType: 'ROOFTOP',
+      contractStatus: 'CONTRACTED',
+      acceptedByOm: false,
+      onboardDate: new Date('2026-05-01T00:00:00.000Z'),
+      forecastPacDate: null,
+      actualPacDate: null,
+      pmCost: 100,
+      pmDaysOnSite: 0,
+      pmVisitsPerAnnum: 0,
+      cctvCost: 50,
+      cleaningCost: 50,
+      additionalCostAnnual: 0,
+      additionalCostAnnualComment: null,
+      additionalCostMonthly: 0,
+      additionalCostMonthlyComment: null,
+      additionalCostMonthlyStartMonth: null,
+      additionalCostMonthlyEndMonth: null,
+      billingPortfolio: 'CORE',
+      spvId: null,
+      spv: null,
+      sourceSheet: null,
+      sourceRow: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    let persisted = { ...site };
+    const user = { id: 'user-1', email: 'user@example.com', name: 'User', role: 'ADMIN' } as const;
+    prismaMock.site.findFirst.mockImplementation(async () => persisted);
+    prismaMock.site.findMany.mockImplementation(async () => [persisted]);
+    prismaMock.site.findUnique.mockResolvedValue({ contractId: 'contract-1', contract: { name: 'Example Contract' } });
+    prismaMock.site.update.mockImplementation(async ({ data }: { data: typeof site }) => {
+      persisted = { ...persisted, ...data };
+      return persisted;
+    });
+    prismaMock.billingSnapshot.findMany.mockResolvedValue([]);
+    prismaMock.rateTier.findMany.mockResolvedValue([]);
+
+    const result = await updateSiteRecord('site-1', {
+      name: site.name,
+      systemSizeKwp: site.systemSizeKwp,
+      siteType: 'Rooftop',
+      contractStatus: 'Contracted',
+      acceptedByOm: true,
+      onboardDate: '2026-05-01',
+      forecastPacDate: null,
+      actualPacDate: null,
+      pmCost: site.pmCost,
+      pmDaysOnSite: site.pmDaysOnSite,
+      pmVisitsPerAnnum: site.pmVisitsPerAnnum,
+      cctvCost: site.cctvCost,
+      cleaningCost: site.cleaningCost,
+      additionalCostAnnual: 0,
+      additionalCostAnnualComment: null,
+      additionalCostMonthly: 0,
+      additionalCostMonthlyComment: null,
+      additionalCostMonthlyStartMonth: null,
+      additionalCostMonthlyEndMonth: null,
+      billingPortfolio: 'CORE',
+      spvId: null,
+    }, user, 'contract-code');
+
+    expect(result).toMatchObject({
+      acceptedByOm: true,
+      contractStatus: 'Contracted',
+    });
   });
 
   it('builds monthly reports from snapshots scoped to the resolved contract', async () => {

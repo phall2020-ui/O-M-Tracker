@@ -18,6 +18,7 @@ function site(overrides: Partial<Site>): Site {
     systemSizeKwp: overrides.systemSizeKwp || 1000,
     siteType: 'Rooftop',
     contractStatus: 'Contracted',
+    acceptedByOm: true,
     onboardDate: '2026-05-01',
     pmCost: 100,
     pmDaysOnSite: 0,
@@ -44,6 +45,28 @@ function site(overrides: Partial<Site>): Site {
 }
 
 describe('portfolio calculations', () => {
+  it('excludes a contracted site from portfolio pricing until O&M accepts it', () => {
+    const unaccepted = site({ id: 'unaccepted', systemSizeKwp: 2_000 });
+    unaccepted.acceptedByOm = false;
+
+    const calculated = calculateSiteWithAllTiers(
+      unaccepted,
+      DEFAULT_RATE_TIERS,
+      DEFAULT_RATE_TIERS[0]
+    );
+    const summary = calculatePortfolioSummary([calculated]);
+
+    expect(calculated.monthlyFee).toBe(0);
+    expect(calculated.pricingBreakdown).toMatchObject({
+      isBillable: false,
+      reviewStatus: 'NEEDS_REVIEW',
+      reviewReason: 'Awaiting O&M acceptance',
+    });
+    expect(summary.contractedSites).toBe(0);
+    expect(summary.contractedCapacityKwp).toBe(0);
+    expect(summary.totalMonthlyFee).toBe(0);
+  });
+
   it('prices pipeline capacity at the standing annual portfolio rate', () => {
     expect(calculatePipelinePortfolioCostAnnual(352.8)).toBe(599.76);
     expect(calculatePipelinePortfolioCostAnnual(0)).toBe(0);

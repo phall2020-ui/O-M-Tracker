@@ -11,6 +11,7 @@ interface SiteOption {
   name: string;
   spvCode: string | null;
   contractStatus?: string;
+  acceptedByOm?: boolean;
   onboardDate?: string | null;
 }
 
@@ -62,6 +63,7 @@ function ContractorPortalContent() {
 
       if (sitesJson.success) {
         const activeSites = sitesJson.data.filter((site: SiteOption) => (
+          site.acceptedByOm === true &&
           Boolean(site.onboardDate) &&
           (site.contractStatus === 'Contracted' || site.contractStatus === 'Yes')
         ));
