@@ -34,6 +34,10 @@ export function calculatePortfolioCost(systemSizeKwp: number, ratePerKwp: number
   return systemSizeKwp * ratePerKwp;
 }
 
+export function calculatePipelinePortfolioCostAnnual(systemSizeKwp: number): number {
+  return calculatePortfolioCost(systemSizeKwp, STANDARD_RATE_PER_KWP);
+}
+
 export function calculateFixedFee(siteFixedCosts: number, portfolioCost: number): number {
   return siteFixedCosts + portfolioCost;
 }

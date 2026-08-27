@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculatePipelinePortfolioCostAnnual,
   calculatePortfolioSummary,
   calculateSiteWithAllTiers,
   currentPortfolioTier,
@@ -43,6 +44,11 @@ function site(overrides: Partial<Site>): Site {
 }
 
 describe('portfolio calculations', () => {
+  it('prices pipeline capacity at the standing annual portfolio rate', () => {
+    expect(calculatePipelinePortfolioCostAnnual(352.8)).toBe(599.76);
+    expect(calculatePipelinePortfolioCostAnnual(0)).toBe(0);
+  });
+
   it('prices every portfolio at the standard rate regardless of contracted capacity', () => {
     const small = site({ id: 'small', systemSizeKwp: 1_000 });
     const core = site({ id: 'core', billingPortfolio: 'CORE', systemSizeKwp: 15_000 });

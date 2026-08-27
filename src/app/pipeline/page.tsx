@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Clock, Download, FileText, Plus, Search, Zap } from 'lucide-react';
 import { SiteFormData, SiteWithCalculations, SPV } from '@/types';
-import { formatCurrency, formatNumber } from '@/lib/calculations';
+import { calculatePipelinePortfolioCostAnnual, formatCurrency, formatNumber } from '@/lib/calculations';
 import { canEditSites, useCurrentUser } from '@/lib/use-current-user';
 import { ErrorPanel } from '@/components/ui/ErrorPanel';
 import { useContractQuery } from '@/lib/use-contract-query';
@@ -358,10 +358,10 @@ function PipelineContent() {
                 <col className="sites-col-status" />
                 <col className="sites-col-date" />
                 <col className="sites-col-spv" />
-                <col className="sites-col-portfolio" />
                 <col className="sites-col-type" />
                 <col className="sites-col-number" />
                 <col className="sites-col-number" />
+                <col className="sites-col-money" />
                 <col className="sites-col-money" />
                 <col className="sites-col-actions" />
               </colgroup>
@@ -371,11 +371,11 @@ function PipelineContent() {
                   <th>Status</th>
                   <th>Forecast / Onboard</th>
                   <th>SPV</th>
-                  <th>Portfolio</th>
                   <th>Type</th>
                   <th>Capacity</th>
                   <th>PM Visits</th>
                   <th>Fixed Costs</th>
+                  <th>Portfolio Cost</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -456,20 +456,6 @@ function PipelineContent() {
                           <span className="muted-cell">Unassigned</span>
                         )}
                       </td>
-                      <td data-label="Portfolio">
-                        {allowSiteEdits ? (
-                          <select
-                            className="inline-table-select inline-table-compact"
-                            value={String(inlineValue(site, 'billingPortfolio'))}
-                            onChange={(event) => autoSaveInlineEdit(site, 'billingPortfolio', event.target.value)}
-                          >
-                            <option value="CORE">Core</option>
-                            <option value="EDEN">Eden</option>
-                          </select>
-                        ) : (
-                          site.billingPortfolio === 'EDEN' ? 'Eden' : 'Core'
-                        )}
-                      </td>
                       <td data-label="Type">
                         {allowSiteEdits ? (
                           <select
@@ -511,6 +497,9 @@ function PipelineContent() {
                         )}
                       </td>
                       <td data-label="Fixed Costs" style={{ fontWeight: 600 }}>{formatCurrency(site.siteFixedCosts || 0)}</td>
+                      <td data-label="Portfolio Cost" style={{ fontWeight: 600 }}>
+                        {formatCurrency(calculatePipelinePortfolioCostAnnual(inlineNumberValue(site, 'systemSizeKwp', 2)))}
+                      </td>
                       <td data-label="Actions">
                         <div className="button-row sites-edit-actions">
                           <Link href={withContract(`/sites/${site.id}`)} className="secondary-action">
