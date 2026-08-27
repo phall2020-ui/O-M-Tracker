@@ -304,7 +304,7 @@ function PipelineContent() {
           <div className="sites-edit-header">
             <div>
               <h2>Pipeline Sites</h2>
-              <p>Status is read-only. Other changes auto-save, and O&M acceptance controls entry into the operational portfolio.</p>
+              <p>Changes auto-save, and O&M acceptance controls entry into the operational portfolio.</p>
             </div>
             <span>{allowSiteEdits ? (savingSiteId ? 'Saving' : 'Auto-save') : 'Pipeline'}</span>
           </div>
@@ -364,9 +364,27 @@ function PipelineContent() {
                         )}
                       </td>
                       <td data-label="Status">
-                        <span className={`status-badge ${isContractedStatus(site.contractStatus) ? 'status-yes' : 'status-no'}`}>
-                          {site.contractStatus === 'No' ? 'Awaiting PAC' : site.contractStatus}
-                        </span>
+                        {allowSiteEdits ? (
+                          <select
+                            className="inline-table-select inline-table-status"
+                            aria-label={`Status for ${site.name}`}
+                            value={String(inlineValue(site, 'contractStatus'))}
+                            disabled={savingSiteId === site.id}
+                            onChange={(event) => autoSaveInlineEdit(
+                              site,
+                              'contractStatus',
+                              event.target.value as SiteFormData['contractStatus']
+                            )}
+                          >
+                            <option value="Contracted">Contracted</option>
+                            <option value="Awaiting PAC">Awaiting PAC</option>
+                            <option value="Awaiting Contract">Awaiting Contract</option>
+                          </select>
+                        ) : (
+                          <span className={`status-badge ${isContractedStatus(site.contractStatus) ? 'status-yes' : 'status-no'}`}>
+                            {site.contractStatus === 'No' ? 'Awaiting PAC' : site.contractStatus}
+                          </span>
+                        )}
                       </td>
                       <td data-label="Accepted by O&M" style={{ textAlign: 'center' }}>
                         <input
