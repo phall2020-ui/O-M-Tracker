@@ -148,6 +148,22 @@ export interface MonthOption {
   label: string;
 }
 
+export interface SpvMonthlySiteLine {
+  id: string;
+  siteId: string | null;
+  name: string;
+  contractStatus: ContractStatus;
+  systemSizeKwp: number;
+  pmDaysOnSite: number;
+  pmVisitsPerAnnum: number;
+  siteFixedCosts: number;
+  variableCostAnnual: number;
+  annualFee: number;
+  monthlyFee: number;
+  billingPortfolio: BillingPortfolioCode;
+  spvCode: string | null;
+}
+
 export interface SpvMonthlyRow {
   spvCode: string;
   spvName: string;
@@ -168,6 +184,7 @@ export interface SpvMonthlyRow {
   invoicedAmount?: number;
   adjustmentAmount?: number;
   adjustedMonthlyFee?: number;
+  siteLines?: SpvMonthlySiteLine[];
 }
 
 export interface SpvMonthlyReport {

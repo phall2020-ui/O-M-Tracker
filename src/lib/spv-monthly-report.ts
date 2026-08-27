@@ -1,6 +1,7 @@
 import { BillingPortfolioBreakdown, BillingPortfolioCode, RateTier, SiteWithCalculations, SpvMonthlyReport, SpvMonthlyRow } from '@/types';
 import { buildAvailableMonths, formatMonthLabel, getMonthBounds, normalizeMonth, currentMonth } from './month-periods';
 import { billingPortfolioLabel, calculateAnnualFeeForTierForMonth, currentPortfolioTier, DEFAULT_RATE_TIERS } from './calculations';
+import { roundCurrency } from './currency';
 
 function emptyTotals(): Omit<SpvMonthlyRow, 'spvCode' | 'spvName'> {
   return {
@@ -88,34 +89,53 @@ export function buildSpvMonthlyReport(
         spvName: site.spvCode ? spvNames[site.spvCode] || site.spvCode : displaySpv.name,
         billingPortfolio,
         billingPortfolioLabel: billingPortfolioLabel(billingPortfolio),
+        siteLines: [],
         ...emptyTotals(),
       } satisfies SpvMonthlyRow);
     const portfolioRow = portfolioGroups.get(billingPortfolio)!;
+    const isContracted = isContractedInMonth(site, end);
+    const annualFee = isContracted ? calculateAnnualFeeForTierForMonth(site, tier, month) : 0;
+    const variableCostAnnual = isContracted ? Math.max(annualFee - site.siteFixedCosts, 0) : 0;
+    const monthlyFee = isContracted ? roundCurrency(annualFee / 12) : 0;
 
     row.siteCount += 1;
     row.totalCapacityKwp += site.systemSizeKwp;
     portfolioRow.siteCount += 1;
     portfolioRow.totalCapacityKwp += site.systemSizeKwp;
 
-    if (isContractedInMonth(site, end)) {
-      const annualFee = calculateAnnualFeeForTierForMonth(site, tier, month);
-      const variableCostAnnual = Math.max(annualFee - site.siteFixedCosts, 0);
+    if (isContracted) {
       row.contractedSiteCount += 1;
       row.contractedCapacityKwp += site.systemSizeKwp;
       row.siteFixedCostsAnnual += site.siteFixedCosts;
       row.variableCostAnnual += variableCostAnnual;
       row.annualFee += annualFee;
-      row.monthlyFee += annualFee / 12;
+      row.monthlyFee += monthlyFee;
       portfolioRow.contractedSiteCount += 1;
       portfolioRow.contractedCapacityKwp += site.systemSizeKwp;
       portfolioRow.siteFixedCostsAnnual += site.siteFixedCosts;
       portfolioRow.variableCostAnnual += variableCostAnnual;
       portfolioRow.annualFee += annualFee;
-      portfolioRow.monthlyFee += annualFee / 12;
+      portfolioRow.monthlyFee += monthlyFee;
     } else {
       row.pendingSiteCount += 1;
       portfolioRow.pendingSiteCount += 1;
     }
+
+    row.siteLines?.push({
+      id: site.id,
+      siteId: site.id,
+      name: site.name,
+      contractStatus: site.contractStatus,
+      systemSizeKwp: site.systemSizeKwp,
+      pmDaysOnSite: site.pmDaysOnSite,
+      pmVisitsPerAnnum: site.pmVisitsPerAnnum,
+      siteFixedCosts: site.siteFixedCosts,
+      variableCostAnnual,
+      annualFee,
+      monthlyFee,
+      billingPortfolio,
+      spvCode: site.spvCode,
+    });
 
     groups.set(groupKey, row);
   }

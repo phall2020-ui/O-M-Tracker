@@ -45,6 +45,56 @@ describe('SPV monthly snapshot report', () => {
     expect(report.totals.monthlyFee).toBe(175);
   });
 
+  it('exposes snapshot site lines that reconcile exactly to the SPV monthly fee', () => {
+    const report = buildSpvMonthlyReportFromSnapshots(
+      [
+        snapshot({
+          id: 'a',
+          siteId: 'site-a',
+          siteName: 'Alpha',
+          expectedAmount: 10.005,
+          sourcePayload: JSON.stringify({
+            site: { billingPortfolio: 'CORE', pmDaysOnSite: 2, pmVisitsPerAnnum: 1 },
+          }),
+        }),
+        snapshot({
+          id: 'b',
+          siteId: 'site-b',
+          siteName: 'Bravo',
+          expectedAmount: 10.005,
+          sourcePayload: JSON.stringify({
+            site: { billingPortfolio: 'CORE', pmDaysOnSite: 4, pmVisitsPerAnnum: 2 },
+          }),
+        }),
+      ],
+      '2026-05',
+      ['2026-05']
+    );
+
+    expect(report.rows[0].siteLines).toEqual([
+      expect.objectContaining({
+        id: 'a',
+        siteId: 'site-a',
+        name: 'Alpha',
+        pmDaysOnSite: 2,
+        pmVisitsPerAnnum: 1,
+        monthlyFee: 10.01,
+      }),
+      expect.objectContaining({
+        id: 'b',
+        siteId: 'site-b',
+        name: 'Bravo',
+        pmDaysOnSite: 4,
+        pmVisitsPerAnnum: 2,
+        monthlyFee: 10.01,
+      }),
+    ]);
+    expect(report.rows[0].siteLines?.reduce((sum, site) => sum + site.monthlyFee, 0)).toBe(
+      report.rows[0].monthlyFee
+    );
+    expect(report.rows[0].monthlyFee).toBe(20.02);
+  });
+
   it('rounds CM days allowed down to whole days from snapshot capacity', () => {
     const report = buildSpvMonthlyReportFromSnapshots(
       [snapshot({ systemSizeKwp: 27_756.23, expectedAmount: 100 })],

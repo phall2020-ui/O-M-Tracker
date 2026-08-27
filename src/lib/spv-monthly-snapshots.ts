@@ -1,6 +1,7 @@
 import { BillingPortfolioBreakdown, BillingPortfolioCode, MonthOption, SpvMonthlyReport, SpvMonthlyRow } from '@/types';
 import { formatMonthLabel } from './month-periods';
 import { billingPortfolioLabel } from './calculations';
+import { roundCurrency } from './currency';
 
 export interface BillingSnapshotForReport {
   id: string;
@@ -38,7 +39,23 @@ function emptyRow(spvCode: string, spvName: string): SpvMonthlyRow {
     correctiveDaysAllowed: 0,
     billingSnapshotCount: 0,
     invoicedAmount: 0,
+    siteLines: [],
   };
+}
+
+function siteMetadataFromSnapshot(snapshot: BillingSnapshotForReport): { pmDaysOnSite: number; pmVisitsPerAnnum: number } {
+  if (!snapshot.sourcePayload) return { pmDaysOnSite: 0, pmVisitsPerAnnum: 0 };
+  try {
+    const parsed = JSON.parse(snapshot.sourcePayload) as {
+      site?: { pmDaysOnSite?: number; pmVisitsPerAnnum?: number };
+    };
+    return {
+      pmDaysOnSite: Number(parsed.site?.pmDaysOnSite) || 0,
+      pmVisitsPerAnnum: Number(parsed.site?.pmVisitsPerAnnum) || 0,
+    };
+  } catch {
+    return { pmDaysOnSite: 0, pmVisitsPerAnnum: 0 };
+  }
 }
 
 function emptyPortfolioBreakdown(billingPortfolio: BillingPortfolioCode): BillingPortfolioBreakdown {
@@ -112,6 +129,8 @@ export function buildSpvMonthlyReportFromSnapshots(
       billingPortfolioLabel: billingPortfolioLabel(billingPortfolio),
     };
     const portfolioRow = portfolioGroups.get(billingPortfolio)!;
+    const siteMetadata = siteMetadataFromSnapshot(snapshot);
+    const monthlyFee = roundCurrency(snapshot.expectedAmount || 0);
     row.siteCount += 1;
     row.contractedSiteCount += 1;
     row.totalCapacityKwp += snapshot.systemSizeKwp;
@@ -119,7 +138,7 @@ export function buildSpvMonthlyReportFromSnapshots(
     row.siteFixedCostsAnnual += snapshot.siteFixedCostsAnnual;
     row.variableCostAnnual += snapshot.variableCostAnnual;
     row.annualFee += snapshot.annualFee;
-    row.monthlyFee += snapshot.expectedAmount || 0;
+    row.monthlyFee += monthlyFee;
     row.billingSnapshotCount = (row.billingSnapshotCount || 0) + 1;
     row.invoicedAmount = (row.invoicedAmount || 0) + (snapshot.invoicedAmount || 0);
     portfolioRow.siteCount += 1;
@@ -129,7 +148,22 @@ export function buildSpvMonthlyReportFromSnapshots(
     portfolioRow.siteFixedCostsAnnual += snapshot.siteFixedCostsAnnual;
     portfolioRow.variableCostAnnual += snapshot.variableCostAnnual;
     portfolioRow.annualFee += snapshot.annualFee;
-    portfolioRow.monthlyFee += snapshot.expectedAmount || 0;
+    portfolioRow.monthlyFee += monthlyFee;
+    row.siteLines?.push({
+      id: snapshot.id,
+      siteId: snapshot.siteId || null,
+      name: snapshot.siteName,
+      contractStatus: 'Contracted',
+      systemSizeKwp: snapshot.systemSizeKwp,
+      pmDaysOnSite: siteMetadata.pmDaysOnSite,
+      pmVisitsPerAnnum: siteMetadata.pmVisitsPerAnnum,
+      siteFixedCosts: snapshot.siteFixedCostsAnnual,
+      variableCostAnnual: snapshot.variableCostAnnual,
+      annualFee: snapshot.annualFee,
+      monthlyFee,
+      billingPortfolio,
+      spvCode: snapshot.spvCode,
+    });
     groups.set(groupKey, row);
   }
 

@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/calculations';
-import { SiteWithCalculations } from '@/types';
+import { SpvMonthlySiteLine } from '@/types';
 import { 
   ArrowLeft, 
   Download, 
@@ -20,7 +20,10 @@ import { useContractQuery } from '@/lib/use-contract-query';
 interface SpvDetails {
   code: string;
   name: string;
-  sites: SiteWithCalculations[];
+  month: string;
+  monthLabel: string;
+  source: 'calculated-sites' | 'billing-snapshots';
+  sites: SpvMonthlySiteLine[];
   summary: {
     totalSites: number;
     contractedSites: number;
@@ -28,6 +31,8 @@ interface SpvDetails {
     contractedCapacityKwp: number;
     totalMonthlyFee: number;
     totalAnnualFee: number;
+    adjustmentAmount: number;
+    adjustedMonthlyFee: number;
   };
 }
 
@@ -35,6 +40,7 @@ function SpvDetailContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const portfolio = searchParams.get('portfolio');
+  const month = searchParams.get('month');
   const router = useRouter();
   const { withContract } = useContractQuery();
   const code = params.code as string;
@@ -46,7 +52,10 @@ function SpvDetailContent() {
   const fetchSpvDetails = useCallback(async () => {
     try {
       const base = withContract(`/api/spvs/${code}`);
-      const url = portfolio ? `${base}${base.includes('?') ? '&' : '?'}portfolio=${portfolio}` : base;
+      const query = new URLSearchParams();
+      if (portfolio) query.set('portfolio', portfolio);
+      if (month) query.set('month', month);
+      const url = query.size > 0 ? `${base}${base.includes('?') ? '&' : '?'}${query.toString()}` : base;
       const res = await fetch(url);
       const data = await res.json();
       
@@ -60,7 +69,7 @@ function SpvDetailContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [code, portfolio, withContract]);
+  }, [code, month, portfolio, withContract]);
 
   useEffect(() => {
     if (code) {
@@ -80,8 +89,8 @@ function SpvDetailContent() {
         site.systemSizeKwp.toFixed(2),
         site.contractStatus,
         site.siteFixedCosts.toFixed(2),
-        site.portfolioCost_20MW.toFixed(2),
-        site.fixedFee_20MW.toFixed(2),
+        site.variableCostAnnual.toFixed(2),
+        site.annualFee.toFixed(2),
         site.monthlyFee.toFixed(2),
       ]);
     
@@ -95,13 +104,17 @@ function SpvDetailContent() {
       '',
       spvDetails.summary.totalMonthlyFee.toFixed(2),
     ]);
+    if (spvDetails.summary.adjustmentAmount !== 0) {
+      rows.push(['MANUAL ITEMS', '', '', '', '', '', spvDetails.summary.adjustmentAmount.toFixed(2)]);
+      rows.push(['INVOICE TOTAL', '', '', '', '', '', spvDetails.summary.adjustedMonthlyFee.toFixed(2)]);
+    }
     
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${code}_invoice_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${code}_invoice_${spvDetails.month}.csv`;
     a.click();
   };
 
@@ -177,7 +190,7 @@ function SpvDetailContent() {
 
           <div className="card stat-card-green">
             <div className="card-header">
-              <span className="card-title">Monthly Fee</span>
+              <span className="card-title">Base Monthly Fee</span>
               <div className="card-icon green"><PoundSterling className="h-5 w-5" /></div>
             </div>
             <div className="card-value">{formatCurrency(spvDetails.summary.totalMonthlyFee)}</div>
@@ -190,9 +203,15 @@ function SpvDetailContent() {
               <div className="card-icon purple"><Calendar className="h-5 w-5" /></div>
             </div>
             <div className="card-value">{formatCurrency(spvDetails.summary.totalAnnualFee)}</div>
-            <div className="card-sub">{formatCurrency(spvDetails.summary.totalMonthlyFee)} x 12</div>
+            <div className="card-sub">Stored annual fee basis</div>
           </div>
         </div>
+
+        {spvDetails.summary.adjustmentAmount !== 0 && (
+          <div className="formula-box" style={{ marginBottom: '24px' }}>
+            Site subtotal {formatCurrency(spvDetails.summary.totalMonthlyFee)} + manual items {formatCurrency(spvDetails.summary.adjustmentAmount)} = invoice total {formatCurrency(spvDetails.summary.adjustedMonthlyFee)}.
+          </div>
+        )}
 
         <div className="monthly-table-card">
           <div className="monthly-table-header">
@@ -204,7 +223,7 @@ function SpvDetailContent() {
               <p>Site-level annual and monthly billing detail for this SPV.</p>
             </div>
             <span className="badge badge-blue">
-              {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+              {spvDetails.monthLabel}
             </span>
           </div>
           <div className="table-container compact-mobile-table">
@@ -224,12 +243,14 @@ function SpvDetailContent() {
                   {spvDetails.sites.map((site) => (
                     <tr key={site.id} className={site.contractStatus !== 'Contracted' && site.contractStatus !== 'Yes' ? 'muted-row' : ''}>
                       <td data-label="Site">
-                        <Link 
-                          href={withContract(`/sites/${site.id}`)}
-                          className="site-link"
-                        >
-                          {site.name}
-                        </Link>
+                        {site.siteId ? (
+                          <Link
+                            href={withContract(`/sites/${site.siteId}`)}
+                            className="site-link"
+                          >
+                            {site.name}
+                          </Link>
+                        ) : site.name}
                       </td>
                       <td data-label="Size" className="numeric">
                         {formatNumber(site.systemSizeKwp, 2)}
@@ -243,11 +264,11 @@ function SpvDetailContent() {
                         {formatCurrency(site.siteFixedCosts)}
                       </td>
                       <td data-label="Portfolio Cost" className="numeric">
-                        {formatCurrency(site.pricingBreakdown.portfolioCostAnnual)}
+                        {formatCurrency(site.variableCostAnnual)}
                       </td>
                       <td data-label="Fixed Fee" className="numeric">
                         {site.contractStatus === 'Contracted' || site.contractStatus === 'Yes' 
-                          ? formatCurrency(site.pricingBreakdown.annualFee)
+                          ? formatCurrency(site.annualFee)
                           : <span className="muted-cell">-</span>
                         }
                       </td>
@@ -273,7 +294,7 @@ function SpvDetailContent() {
                       {formatCurrency(contractedSites.reduce((s, site) => s + site.siteFixedCosts, 0))}
                     </td>
                     <td data-label="Portfolio Cost" className="numeric">
-                      {formatCurrency(contractedSites.reduce((s, site) => s + site.pricingBreakdown.portfolioCostAnnual, 0))}
+                      {formatCurrency(contractedSites.reduce((s, site) => s + site.variableCostAnnual, 0))}
                     </td>
                     <td data-label="Fixed Fee" className="numeric">
                       {formatCurrency(spvDetails.summary.totalAnnualFee)}
@@ -282,6 +303,22 @@ function SpvDetailContent() {
                       {formatCurrency(spvDetails.summary.totalMonthlyFee)}
                     </td>
                   </tr>
+                  {spvDetails.summary.adjustmentAmount !== 0 && (
+                    <>
+                      <tr>
+                        <td colSpan={6}>Manual items</td>
+                        <td data-label="Monthly Fee" className="numeric strong">
+                          {formatCurrency(spvDetails.summary.adjustmentAmount)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={6}>INVOICE TOTAL</td>
+                        <td data-label="Monthly Fee" className="numeric strong">
+                          {formatCurrency(spvDetails.summary.adjustedMonthlyFee)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
                 </tfoot>
               </table>
           </div>

@@ -66,6 +66,26 @@ describe('SPV monthly report', () => {
     expect(report.totals.contractedSiteCount).toBe(1);
   });
 
+  it('exposes calculated site lines that reconcile exactly when snapshots do not exist', () => {
+    const report = buildSpvMonthlyReport(
+      [
+        site({ id: 'alpha', name: 'Alpha', spvCode: 'OS2', monthlyFee: 999 }),
+        site({ id: 'bravo', name: 'Bravo', spvCode: 'OS2', monthlyFee: 999 }),
+      ],
+      '2026-05'
+    );
+
+    expect(report.rows[0].siteLines).toEqual([
+      expect.objectContaining({ siteId: 'alpha', name: 'Alpha', monthlyFee: 158.33 }),
+      expect.objectContaining({ siteId: 'bravo', name: 'Bravo', monthlyFee: 158.33 }),
+    ]);
+    expect(report.rows[0].siteLines?.reduce((sum, site) => sum + site.monthlyFee, 0)).toBeCloseTo(
+      report.rows[0].monthlyFee,
+      10
+    );
+    expect(report.rows[0].monthlyFee).toBe(316.66);
+  });
+
   it('rounds CM days allowed down to whole days', () => {
     const report = buildSpvMonthlyReport(
       [site({ id: 'larger', systemSizeKwp: 27_756.23, onboardDate: '2026-05-01', spvCode: 'OS2' })],
@@ -114,13 +134,13 @@ describe('SPV monthly report', () => {
       expect.objectContaining({
         billingPortfolio: 'CORE',
         contractedCapacityKwp: 15_000,
-        monthlyFee: (200 + 15_000 * 1.7) / 12,
+        monthlyFee: 2141.67,
         correctiveDaysAllowed: 1,
       }),
       expect.objectContaining({
         billingPortfolio: 'EDEN',
         contractedCapacityKwp: 6_000,
-        monthlyFee: (200 + 6_000 * 1.7) / 12,
+        monthlyFee: 866.67,
         correctiveDaysAllowed: 0,
       }),
     ]);
