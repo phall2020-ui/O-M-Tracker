@@ -1,240 +1,194 @@
 """
-Import Data page - import sites from Excel spreadsheet.
-Supports the same Excel format as the legacy system.
+Import Data page - import sites from the Framework Tracker spreadsheet or a
+JSON export, with a full validated preview before anything is written.
 """
 
-import streamlit as st
-import pandas as pd
-import sys
+import json
 import os
-from datetime import datetime
+import sys
+from datetime import date
 
-# Add parent directory to path for imports
+import pandas as pd
+import streamlit as st
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import db
+import db  # noqa: E402
+import importer  # noqa: E402
+import ui  # noqa: E402
+from validation import ValidationError  # noqa: E402
 
-st.set_page_config(
-    page_title="Import Data - Clearsol O&M",
-    page_icon="⚡",
-    layout="wide",
-)
+ui.setup_page('Import Data', '📤', 'Bulk-load sites from Excel or JSON')
 
-# Page Header
-st.title("📤 Import Data")
-st.caption("Import sites from Excel spreadsheet")
+existing_sites = db.get_sites()
+spvs_by_code = db.get_spvs_by_code()
 
-st.markdown("---")
+# ---------- Backup ----------
+if existing_sites:
+    with st.container(border=True):
+        b1, b2 = st.columns([3, 1])
+        with b1:
+            st.markdown(
+                f"**{len(existing_sites)} sites** are currently stored. Importing **replaces** them all. "
+                'Download a backup first — it can be re-imported via the JSON option below.'
+            )
+        with b2:
+            st.download_button(
+                '💾 Backup current sites (JSON)',
+                data=json.dumps(existing_sites, indent=2, default=str),
+                file_name=f'clearsol_sites_backup_{date.today().isoformat()}.json',
+                mime='application/json',
+                width='stretch',
+            )
 
-# Import Section
-st.subheader("Import from Excel")
-st.markdown("""
-Upload your Clearsol O&M Framework Tracker spreadsheet to import site data.
-The importer will read the "Portfolio Tracker" tab.
-""")
 
-# File upload
-uploaded_file = st.file_uploader(
-    "Choose an Excel file",
-    type=['xlsx', 'xls'],
-    help="Select your Clearsol O&M Framework Tracker spreadsheet"
-)
+def render_preview_and_import(result: importer.ImportResult, source_label: str, key: str) -> None:
+    """Shared preview + import flow for Excel and JSON."""
+    if result.file_errors:
+        for message in result.file_errors:
+            st.error(message)
+        return
 
-if uploaded_file is not None:
-    st.success(f"📁 File selected: **{uploaded_file.name}**")
-    
-    # Preview and Import buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        preview_clicked = st.button("👁️ Preview Data", use_container_width=True)
-    with col2:
-        import_clicked = st.button("📥 Import Sites", type="primary", use_container_width=True)
-    
-    # Try to read the Excel file
-    try:
-        import openpyxl
-        
-        # Read the file
-        xlsx = pd.ExcelFile(uploaded_file)
-        
-        # Check for Portfolio Tracker sheet
-        if 'Portfolio Tracker' not in xlsx.sheet_names:
-            st.error("❌ 'Portfolio Tracker' sheet not found in the Excel file.")
-            st.info(f"Available sheets: {', '.join(xlsx.sheet_names)}")
+    stats = result.summary()
+    st.subheader('Preview')
+    p1, p2, p3, p4, p5 = st.columns(5)
+    p1.metric('Rows found', stats['rows_found'])
+    p2.metric('Ready to import', stats['valid'])
+    p3.metric('Rows with errors', stats['with_errors'])
+    p4.metric('Rows with warnings', stats['with_warnings'])
+    p5.metric('Contracted capacity', ui.mw(sum(
+        s['system_size_kwp'] for s in result.valid_sites if s['contract_status'] == 'Yes'
+    )))
+
+    if result.skipped_rows:
+        with st.expander(f'{len(result.skipped_rows)} row(s) skipped'):
+            st.dataframe(
+                pd.DataFrame(result.skipped_rows, columns=['Row', 'Reason']),
+                width='stretch', hide_index=True,
+            )
+
+    if not result.rows:
+        st.warning('No site rows were found.')
+        return
+
+    preview = result.preview_frame()
+    show_only_issues = st.toggle('Show only rows with issues', value=stats['with_errors'] > 0, key=f'{key}_issues')
+    if show_only_issues:
+        preview = preview[preview['Status'] != 'OK']
+    st.dataframe(
+        preview,
+        width='stretch',
+        hide_index=True,
+        column_config={
+            'Row': st.column_config.NumberColumn(width='small', format='%d'),
+            'Status': st.column_config.TextColumn(width='small'),
+            'Size (kWp)': st.column_config.NumberColumn(format='%,.2f'),
+            'PM Cost': st.column_config.NumberColumn(format='£%,.2f'),
+            'CCTV Cost': st.column_config.NumberColumn(format='£%,.2f'),
+            'Cleaning Cost': st.column_config.NumberColumn(format='£%,.2f'),
+            'Issues': st.column_config.TextColumn(width='large'),
+        },
+    )
+
+    if stats['with_errors']:
+        st.error(
+            f"{stats['with_errors']} row(s) have errors and cannot be imported as-is. "
+            'Fix them in the spreadsheet, or tick the option below to import only the valid rows.'
+        )
+        skip_errors = st.checkbox(
+            f"Skip the {stats['with_errors']} row(s) with errors and import the {stats['valid']} valid rows",
+            key=f'{key}_skip',
+        )
+    else:
+        skip_errors = True
+
+    if stats['with_warnings']:
+        st.info(
+            f"{stats['with_warnings']} row(s) have warnings (e.g. unknown SPV, missing onboard date). "
+            'They will import, and the issues will appear on the dashboard data-quality panel.'
+        )
+
+    can_import = stats['valid'] > 0 and (stats['with_errors'] == 0 or skip_errors)
+    confirm = True
+    if existing_sites:
+        confirm = st.checkbox(
+            f'I understand this will replace the {len(existing_sites)} existing sites', key=f'{key}_confirm'
+        )
+
+    if st.button(
+        f"📥 Import {stats['valid']} sites from {source_label}",
+        type='primary',
+        disabled=not (can_import and confirm),
+        key=f'{key}_import',
+    ):
+        try:
+            with st.spinner('Importing…'):
+                imported = db.import_sites(result.valid_sites, replace=True)
+        except ValidationError as exc:
+            ui.show_errors(exc.errors, 'Import aborted — nothing was changed:')
         else:
-            # Read the Portfolio Tracker sheet
-            df = pd.read_excel(xlsx, sheet_name='Portfolio Tracker', header=None)
-            
-            # Parse sites from rows 5-68 (index 4-67)
-            sites_data = []
-            
-            for row_idx in range(4, min(68, len(df))):
-                row = df.iloc[row_idx]
-                
-                # Column C (index 2) = Site Name
-                site_name = row.iloc[2] if len(row) > 2 else None
-                
-                if pd.isna(site_name) or not isinstance(site_name, str):
-                    continue
-                
-                # Parse fields
-                system_size = float(row.iloc[3]) if len(row) > 3 and pd.notna(row.iloc[3]) else 0
-                contract_val = row.iloc[4] if len(row) > 4 else None
-                onboard_date_raw = row.iloc[5] if len(row) > 5 else None
-                pm_cost = float(row.iloc[6]) if len(row) > 6 and pd.notna(row.iloc[6]) else 0
-                cctv_cost = float(row.iloc[7]) if len(row) > 7 and pd.notna(row.iloc[7]) else 0
-                cleaning_cost = float(row.iloc[8]) if len(row) > 8 and pd.notna(row.iloc[8]) else 0
-                spv_code = row.iloc[21] if len(row) > 21 and pd.notna(row.iloc[21]) else None  # Column V
-                
-                # Parse onboard date
-                onboard_date = None
-                if pd.notna(onboard_date_raw):
-                    if isinstance(onboard_date_raw, datetime):
-                        onboard_date = onboard_date_raw.strftime('%Y-%m-%d')
-                    elif isinstance(onboard_date_raw, str):
-                        onboard_date = onboard_date_raw
-                
-                # Determine contract status
-                contract_status = 'Yes' if contract_val == 'Yes' else 'No'
-                
-                # Get SPV info
-                spv = db.get_spv_by_code(spv_code) if spv_code else None
-                
-                sites_data.append({
-                    'name': site_name,
-                    'system_size_kwp': system_size,
-                    'site_type': 'Rooftop',
-                    'contract_status': contract_status,
-                    'onboard_date': onboard_date,
-                    'pm_cost': pm_cost,
-                    'cctv_cost': cctv_cost,
-                    'cleaning_cost': cleaning_cost,
-                    'spv_id': spv['id'] if spv else None,
-                    'spv_code': spv_code,
-                    'source_sheet': 'Portfolio Tracker',
-                    'source_row': row_idx + 1,  # Excel row number (1-indexed)
-                })
-            
-            if preview_clicked:
-                st.markdown("---")
-                st.subheader("Preview")
-                st.write(f"Found **{len(sites_data)}** sites to import:")
-                
-                if sites_data:
-                    df_preview = pd.DataFrame(sites_data)
-                    display_cols = ['name', 'system_size_kwp', 'contract_status', 'spv_code', 'pm_cost', 'cctv_cost', 'cleaning_cost']
-                    df_display = df_preview[[c for c in display_cols if c in df_preview.columns]].copy()
-                    df_display.columns = ['Site Name', 'Size (kWp)', 'Contract', 'SPV', 'PM Cost', 'CCTV', 'Cleaning']
-                    
-                    st.dataframe(df_display, use_container_width=True, hide_index=True)
-                else:
-                    st.warning("No valid sites found in the spreadsheet.")
-            
-            if import_clicked:
-                if not sites_data:
-                    st.error("❌ No valid sites found to import.")
-                else:
-                    st.markdown("---")
-                    with st.spinner("Importing sites..."):
-                        imported = db.import_sites(sites_data)
-                    
-                    st.success(f"✅ Successfully imported **{len(imported)}** sites!")
-                    
-                    # Show summary
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        contracted = len([s for s in sites_data if s['contract_status'] == 'Yes'])
-                        st.metric("Contracted Sites", contracted)
-                    with col2:
-                        total_capacity = sum(s['system_size_kwp'] for s in sites_data)
-                        st.metric("Total Capacity", f"{total_capacity/1000:,.2f} MW")
-                    
-                    if st.button("📋 View Imported Sites"):
-                        st.switch_page("pages/1_Sites.py")
-    
-    except ImportError:
-        st.error("❌ openpyxl library is required for Excel import. Install with: `pip install openpyxl`")
-    except Exception as e:
-        st.error(f"❌ Error reading Excel file: {str(e)}")
+            st.success(f'Imported **{len(imported)}** sites. Existing data was replaced in a single transaction.')
+            st.balloons()
+            s1, s2, s3 = st.columns(3)
+            s1.metric('Sites', len(imported))
+            s2.metric('Contracted', sum(1 for s in imported if s['contract_status'] == 'Yes'))
+            s3.metric('Total capacity', ui.mw(sum(s['system_size_kwp'] for s in imported)))
+            st.page_link('pages/1_Sites.py', label='View imported sites', icon='📋')
+            st.page_link('app.py', label='Check data quality on the dashboard', icon='📊')
 
-st.markdown("---")
 
-# Import Requirements
-st.subheader("Import Requirements")
+# ---------- Excel ----------
+st.subheader('Import from Excel')
+st.markdown(
+    'Upload the **Clearsol O&M Framework Tracker** workbook. The importer reads the '
+    f'"{importer.SHEET_NAME}" tab, starting at row {importer.FIRST_DATA_ROW}, and stops at the end of the site block.'
+)
 
-st.markdown("""
+uploaded = st.file_uploader('Choose an Excel file', type=['xlsx', 'xlsm', 'xls'], key='excel_upload')
+
+if uploaded is not None:
+    with st.expander('Advanced: row range'):
+        r1, r2 = st.columns(2)
+        with r1:
+            first_row = st.number_input('First data row', min_value=1, value=importer.FIRST_DATA_ROW, step=1)
+        with r2:
+            last_row = st.number_input('Last data row (0 = auto-detect)', min_value=0, value=0, step=1)
+    result = importer.parse_workbook(
+        uploaded, spvs_by_code, first_row=int(first_row), last_row=int(last_row) or None
+    )
+    render_preview_and_import(result, uploaded.name, key='excel')
+
+with st.expander('Spreadsheet layout expected'):
+    st.markdown(
+        f"""
 | Requirement | Details |
 |------------|---------|
-| **Sheet Name** | Must contain a "Portfolio Tracker" tab |
-| **Data Range** | Site data should start from row 5 (rows 1-4 are headers) |
-| **Required Columns** | Site Name (C), System Size (D) |
-| **Optional Columns** | Contract (E), Onboard Date (F), PM Cost (G), CCTV (H), Cleaning (I), SPV (V) |
-""")
+| **Sheet name** | Must contain a "{importer.SHEET_NAME}" tab |
+| **Data range** | Sites start at row {importer.FIRST_DATA_ROW}; the importer scans down until the block ends |
+| **Required columns** | Site Name (C), System Size kWp (D) |
+| **Optional columns** | Contract Yes/No (E), Onboard Date (F), PM Cost (G), CCTV (H), Cleaning (I), SPV code (V) |
+| **Accepted values** | Contract: Yes/No/Y/N/True/False · Dates: Excel dates or DD/MM/YYYY · Costs: numbers, "£1,250" |
+"""
+    )
 
-st.warning("⚠️ **Important:** Importing will replace all existing site data.")
+st.markdown('---')
 
-st.markdown("---")
-
-# Manual Import Alternative
-st.subheader("Manual Data Entry")
-st.markdown("""
-Alternatively, you can add sites manually:
-""")
-
-if st.button("➕ Add Site Manually"):
-    if 'selected_site_id' in st.session_state:
-        del st.session_state['selected_site_id']
-    st.switch_page("pages/2_Site_Details.py")
-
-# JSON Import Option
-st.markdown("---")
-st.subheader("Import from JSON")
-st.markdown("Import site data from a JSON file (advanced):")
-
-json_file = st.file_uploader(
-    "Upload JSON file",
-    type=['json'],
-    help="Upload a JSON file containing site data"
-)
+# ---------- JSON ----------
+st.subheader('Import from JSON')
+st.caption('Restore a backup downloaded from this page, or load an export from the legacy Next.js app (camelCase keys are accepted).')
+json_file = st.file_uploader('Upload JSON file', type=['json'], key='json_upload')
 
 if json_file is not None:
     try:
-        import json
-        
-        json_data = json.load(json_file)
-        
-        if isinstance(json_data, list):
-            st.success(f"📁 Found **{len(json_data)}** sites in JSON file")
-            
-            if st.button("📥 Import from JSON", type="primary"):
-                # Transform JSON data to match our format
-                sites_data = []
-                for item in json_data:
-                    # Handle both camelCase and snake_case keys
-                    sites_data.append({
-                        'name': item.get('name', ''),
-                        'system_size_kwp': item.get('systemSizeKwp', item.get('system_size_kwp', 0)),
-                        'site_type': item.get('siteType', item.get('site_type', 'Rooftop')),
-                        'contract_status': item.get('contractStatus', item.get('contract_status', 'No')),
-                        'onboard_date': item.get('onboardDate', item.get('onboard_date')),
-                        'pm_cost': item.get('pmCost', item.get('pm_cost', 0)),
-                        'cctv_cost': item.get('cctvCost', item.get('cctv_cost', 0)),
-                        'cleaning_cost': item.get('cleaningCost', item.get('cleaning_cost', 0)),
-                        'spv_id': item.get('spvId', item.get('spv_id')),
-                        'spv_code': item.get('spvCode', item.get('spv_code')),
-                        'source_sheet': item.get('sourceSheet', item.get('source_sheet')),
-                        'source_row': item.get('sourceRow', item.get('source_row')),
-                    })
-                
-                imported = db.import_sites(sites_data)
-                st.success(f"✅ Successfully imported **{len(imported)}** sites from JSON!")
-                
-                if st.button("📋 View Imported Sites", key="view_json_import"):
-                    st.switch_page("pages/1_Sites.py")
-        else:
-            st.error("JSON file should contain an array of site objects.")
-    
-    except json.JSONDecodeError as e:
-        st.error(f"❌ Invalid JSON file: {str(e)}")
-    except Exception as e:
-        st.error(f"❌ Error processing JSON file: {str(e)}")
+        payload = json.load(json_file)
+    except json.JSONDecodeError as exc:
+        st.error(f'Invalid JSON file: {exc}')
+    else:
+        result = importer.parse_json_sites(payload, spvs_by_code)
+        render_preview_and_import(result, json_file.name, key='json')
+
+st.markdown('---')
+
+# ---------- Manual ----------
+st.subheader('Manual entry')
+if st.button('➕ Add a site manually'):
+    ui.go_to_new_site()

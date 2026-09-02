@@ -1,169 +1,161 @@
 """
-Rate Tiers / Settings page - manage portfolio rate tiers.
-Allows viewing and editing of rate tier configuration.
+Settings page - rate tier configuration, worked examples and formula reference.
 """
 
-import streamlit as st
-import pandas as pd
-import sys
 import os
+import sys
 
-# Add parent directory to path for imports
+import pandas as pd
+import streamlit as st
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import db
-import calculations
+import calculations  # noqa: E402
+import db  # noqa: E402
+import ui  # noqa: E402
+from validation import ValidationError  # noqa: E402
 
-st.set_page_config(
-    page_title="Rate Tiers - Clearsol O&M",
-    page_icon="⚡",
-    layout="wide",
+ui.setup_page('Settings', '⚙️', 'Configure portfolio rate tiers')
+
+tiers = db.get_rate_tiers()
+sites = db.get_sites()
+summary = calculations.calculate_portfolio_summary(sites, tiers)
+current_tier_name = summary['current_tier']
+
+# ---------- Current tiers ----------
+st.subheader('Rate tiers')
+st.caption(
+    'The portfolio rate (£/kWp) depends on total **contracted** capacity. '
+    f"Currently **{summary['contracted_capacity_kwp'] / 1000:,.2f} MW** contracted → tier **{current_tier_name}**."
 )
 
-# Page Header
-st.title("⚙️ Settings")
-st.caption("Configure portfolio settings")
-
-st.markdown("---")
-
-# Rate Tiers Section
-st.subheader("Rate Tiers")
-st.markdown("Current portfolio cost rates by capacity tier.")
-
-# Load rate tiers
-tiers = db.get_rate_tiers()
-
 if tiers:
-    # Create editable dataframe
-    df_tiers = pd.DataFrame(tiers)
-    
-    # Format for display
-    df_display = df_tiers[['tier_name', 'min_capacity_mw', 'max_capacity_mw', 'rate_per_kwp']].copy()
-    df_display.columns = ['Tier', 'Min Capacity (MW)', 'Max Capacity (MW)', 'Rate (£/kWp)']
-    
-    # Format max capacity (handle None/null)
-    df_display['Max Capacity (MW)'] = df_display['Max Capacity (MW)'].apply(
-        lambda x: f"{x:.0f}" if pd.notna(x) else "∞"
+    view = pd.DataFrame([
+        {
+            'Tier': t['tier_name'],
+            'Current': '◀ current' if t['tier_name'] == current_tier_name else '',
+            'From (MW)': t['min_capacity_mw'],
+            'To (MW)': t['max_capacity_mw'],
+            'Rate (£/kWp)': t['rate_per_kwp'],
+        }
+        for t in tiers
+    ])
+    st.dataframe(
+        view,
+        width='stretch',
+        hide_index=True,
+        column_config={
+            'From (MW)': st.column_config.NumberColumn(format='%.0f'),
+            'To (MW)': st.column_config.NumberColumn(format='%.0f'),
+            'Rate (£/kWp)': st.column_config.NumberColumn(format='£%.2f'),
+        },
     )
-    df_display['Min Capacity (MW)'] = df_display['Min Capacity (MW)'].apply(lambda x: f"{x:.0f}")
-    df_display['Rate (£/kWp)'] = df_display['Rate (£/kWp)'].apply(lambda x: f"£{x:.2f}")
-    
-    st.table(df_display)
-    
-    # Rate editing section
-    st.markdown("---")
-    st.subheader("Edit Rate Tiers")
-    st.markdown("Adjust the rate per kWp for each tier:")
-    
-    # Create edit form
-    with st.form("edit_rates_form"):
+
+    # ---------- Edit ----------
+    st.subheader('Edit rates')
+    st.caption('Changing a rate immediately re-prices every contracted site in that tier. Changes are recorded in the audit log.')
+    with st.form('edit_rates_form'):
         new_rates = {}
         cols = st.columns(len(tiers))
-        
-        for i, tier in enumerate(tiers):
-            with cols[i]:
-                new_rate = st.number_input(
-                    f"{tier['tier_name']}",
-                    min_value=0.0,
+        for col, tier in zip(cols, tiers):
+            with col:
+                new_rates[tier['id']] = st.number_input(
+                    f"{tier['tier_name']} (£/kWp)",
+                    min_value=0.01,
                     max_value=100.0,
                     value=float(tier['rate_per_kwp']),
-                    step=0.01,
-                    format="%.2f",
-                    key=f"rate_{tier['id']}"
+                    step=0.05,
+                    format='%.2f',
+                    key=f"rate_{tier['id']}",
                 )
-                new_rates[tier['id']] = new_rate
-        
-        submitted = st.form_submit_button("💾 Save Changes", type="primary")
-        
-        if submitted:
-            success = True
-            for tier_id, rate in new_rates.items():
-                if not db.update_rate_tier(tier_id, rate):
-                    success = False
-            
-            if success:
-                st.success("Rate tiers updated successfully!")
-                st.rerun()
+        submitted = st.form_submit_button('💾 Save changes', type='primary')
+
+    if submitted:
+        ordered = sorted(tiers, key=lambda t: t['min_capacity_mw'])
+        rates_in_order = [new_rates[t['id']] for t in ordered]
+        warnings = []
+        if any(later > earlier for earlier, later in zip(rates_in_order, rates_in_order[1:])):
+            warnings.append('Rates normally decrease as capacity grows — a higher tier has a higher rate than the one below it.')
+        changed = [t for t in tiers if abs(new_rates[t['id']] - t['rate_per_kwp']) > 1e-9]
+        if not changed:
+            st.info('No changes to save.')
+        else:
+            try:
+                for tier in changed:
+                    db.update_rate_tier(tier['id'], new_rates[tier['id']])
+            except ValidationError as exc:
+                ui.show_errors(exc.errors)
             else:
-                st.error("Failed to update some rate tiers")
+                if warnings:
+                    ui.show_warnings(warnings, 'Saved, but please check:')
+                st.toast(f'Updated {len(changed)} rate tier(s)', icon='✅')
+                st.rerun()
 else:
-    st.warning("No rate tiers configured.")
+    st.warning('No rate tiers configured.')
 
-st.markdown("---")
+st.markdown('---')
 
-# Calculation Examples
-st.subheader("Calculation Examples")
-st.markdown("How fees are calculated for each tier:")
+# ---------- Worked example ----------
+st.subheader('Worked example')
+st.caption('See how a site of a given size is priced in each tier.')
+tiers_for_calc = tiers or calculations.DEFAULT_RATE_TIERS
 
-tiers_for_calc = tiers if tiers else calculations.DEFAULT_RATE_TIERS
+e1, e2, e3, e4 = st.columns(4)
+with e1:
+    example_size = st.number_input('System size (kWp)', min_value=1.0, value=500.0, step=50.0, format='%.0f')
+with e2:
+    example_pm = st.number_input('PM cost (£)', min_value=0.0, value=500.0, step=50.0, format='%.0f')
+with e3:
+    example_cctv = st.number_input('CCTV cost (£)', min_value=0.0, value=200.0, step=50.0, format='%.0f')
+with e4:
+    example_cleaning = st.number_input('Cleaning cost (£)', min_value=0.0, value=300.0, step=50.0, format='%.0f')
 
-# Example calculation
-example_size = st.slider("Example System Size (kWp)", 50, 5000, 500, 50)
-
-example_costs = {
-    'PM Cost': 500,
-    'CCTV Cost': 200,
-    'Cleaning Cost': 300,
-}
-
-st.markdown("**Example Site Fixed Costs:**")
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.write(f"PM Cost: £{example_costs['PM Cost']:,.2f}")
-with col2:
-    st.write(f"CCTV Cost: £{example_costs['CCTV Cost']:,.2f}")
-with col3:
-    st.write(f"Cleaning Cost: £{example_costs['Cleaning Cost']:,.2f}")
-
-total_fixed_costs = sum(example_costs.values())
-st.write(f"**Total Site Fixed Costs:** £{total_fixed_costs:,.2f}")
-
-st.markdown("---")
-
-# Calculate for each tier
-st.markdown("**Fee Calculations by Tier:**")
-
-calc_results = []
+fixed_costs = calculations.calculate_site_fixed_costs(example_pm, example_cctv, example_cleaning)
+rows = []
 for tier in tiers_for_calc:
-    portfolio_cost = example_size * tier['rate_per_kwp']
-    fixed_fee = total_fixed_costs + portfolio_cost
-    fee_per_kwp = fixed_fee / example_size if example_size > 0 else 0
-    monthly_fee = fixed_fee / 12
-    
-    calc_results.append({
-        'Tier': tier['tier_name'],
-        'Rate (£/kWp)': f"£{tier['rate_per_kwp']:.2f}",
-        'Portfolio Cost': f"£{portfolio_cost:,.2f}",
-        'Fixed Fee': f"£{fixed_fee:,.2f}",
-        'Fee/kWp': f"£{fee_per_kwp:.2f}",
-        'Monthly Fee': f"£{monthly_fee:,.2f}",
+    portfolio_cost = calculations.calculate_portfolio_cost(example_size, tier['rate_per_kwp'])
+    fixed_fee = calculations.calculate_fixed_fee(fixed_costs, portfolio_cost)
+    rows.append({
+        'Tier': tier['tier_name'] + (' ◀ current' if tier['tier_name'] == current_tier_name else ''),
+        'Rate (£/kWp)': tier['rate_per_kwp'],
+        'Site fixed costs': fixed_costs,
+        'Portfolio cost': portfolio_cost,
+        'Fixed fee (annual)': fixed_fee,
+        'Fee per kWp': calculations.calculate_fee_per_kwp(fixed_fee, example_size, True),
+        'Monthly fee': calculations.calculate_monthly_fee(fixed_fee),
     })
+st.dataframe(
+    pd.DataFrame(rows),
+    width='stretch',
+    hide_index=True,
+    column_config={
+        'Rate (£/kWp)': st.column_config.NumberColumn(format='£%.2f'),
+        'Site fixed costs': st.column_config.NumberColumn(format='£%,.2f'),
+        'Portfolio cost': st.column_config.NumberColumn(format='£%,.2f'),
+        'Fixed fee (annual)': st.column_config.NumberColumn(format='£%,.2f'),
+        'Fee per kWp': st.column_config.NumberColumn(format='£%.2f'),
+        'Monthly fee': st.column_config.NumberColumn(format='£%,.2f'),
+    },
+)
 
-df_calc = pd.DataFrame(calc_results)
-st.table(df_calc)
+st.markdown('---')
 
-st.markdown("---")
-
-# Formula Reference
-st.subheader("Formula Reference")
-
-st.markdown("""
+# ---------- Formula reference ----------
+st.subheader('Formula reference')
+st.markdown(
+    """
 | Calculation | Formula |
 |-------------|---------|
-| **Site Fixed Costs** | PM Cost + CCTV Cost + Cleaning Cost |
-| **Portfolio Cost** | System Size (kWp) × Rate per kWp |
-| **Fixed Fee** | Site Fixed Costs + Portfolio Cost |
-| **Fee per kWp** | Fixed Fee ÷ System Size (only if contracted) |
-| **Monthly Fee** | Fixed Fee ÷ 12 |
-| **Corrective Days** | Portfolio Capacity (MW) ÷ 12 |
-""")
+| **Site fixed costs** | PM cost + CCTV cost + Cleaning cost |
+| **Portfolio cost** | System size (kWp) × Rate per kWp for the portfolio's current tier |
+| **Fixed fee** | Site fixed costs + Portfolio cost |
+| **Fee per kWp** | Fixed fee ÷ System size (contracted sites only) |
+| **Monthly fee** | Fixed fee ÷ 12 (contracted sites only) |
+| **Portfolio tier** | Determined by total contracted capacity (MW) |
+| **CM days accrued / month** | Contracted capacity (MW) ÷ 12, rounded to 0.1 |
+"""
+)
 
-st.markdown("---")
-
-# Future Features
-st.subheader("Coming Soon")
-st.markdown("""
-- 👤 User management and authentication
-- 📊 Custom report generation
-- 📋 Audit log viewer
-- 📤 Export settings and data
-""")
+st.markdown('---')
+st.subheader('Database')
+st.caption(f'SQLite file: `{db.DB_PATH}` · {len(sites)} sites · {db.count_audit_entries()} audit entries')
+st.caption('Set the `CLEARSOL_DB_PATH` environment variable to store the database elsewhere.')

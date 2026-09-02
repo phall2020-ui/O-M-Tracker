@@ -1,327 +1,304 @@
 """
-Site Details page - view and edit individual site information.
-Includes calculated fee breakdowns by tier.
+Site Details page - view, edit and create individual sites, with fee
+breakdowns by tier, data-quality flags and the site's change history.
 """
 
-import streamlit as st
-import sys
+from __future__ import annotations
+
 import os
-from datetime import datetime
+import sys
 
-# Add parent directory to path for imports
+import pandas as pd
+import streamlit as st
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import db
-import calculations
+import calculations  # noqa: E402
+import data_quality  # noqa: E402
+import db  # noqa: E402
+import ui  # noqa: E402
+import validation  # noqa: E402
+from validation import ValidationError  # noqa: E402
 
-st.set_page_config(
-    page_title="Site Details - Clearsol O&M",
-    page_icon="⚡",
-    layout="wide",
-)
+site_id = st.session_state.get(ui.SITE_ID_KEY)
+edit_mode = bool(st.session_state.get(ui.EDIT_MODE_KEY, False))
 
-# Get site ID from session state or show create form
-site_id = st.session_state.get('selected_site_id')
-edit_mode = st.session_state.get('edit_mode', False)
-
-# Load SPVs for dropdown
 spvs = db.get_spvs()
-spv_options = {spv['code']: f"{spv['code']} - {spv['name']}" for spv in spvs}
-spv_options_with_none = {'': '-- None --', **spv_options}
+spvs_by_code = {spv['code']: spv for spv in spvs}
+spv_options = [''] + [spv['code'] for spv in spvs]
 
-if site_id:
-    # Load existing site
-    site = db.get_site_by_id(site_id)
-    
-    if not site:
-        st.error("Site not found")
-        if st.button("← Back to Sites"):
-            del st.session_state['selected_site_id']
-            st.switch_page("pages/1_Sites.py")
-        st.stop()
-    
-    site_with_calcs = calculations.calculate_site_with_all_tiers(site)
-    
-    # Page Header
-    if edit_mode:
-        st.title("✏️ Edit Site")
-        st.caption(site['name'])
-    else:
-        st.title(f"📍 {site['name']}")
-        st.caption(f"{site.get('site_type', 'Rooftop')} • {site.get('system_size_kwp', 0):,.2f} kWp")
-    
-    # Navigation
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        if st.button("← Back to Sites"):
-            if 'selected_site_id' in st.session_state:
-                del st.session_state['selected_site_id']
-            if 'edit_mode' in st.session_state:
-                del st.session_state['edit_mode']
-            st.switch_page("pages/1_Sites.py")
-    
-    if not edit_mode:
-        # Action buttons
-        col_actions = st.columns([1, 1, 4])
-        with col_actions[0]:
-            if st.button("✏️ Edit", use_container_width=True):
-                st.session_state['edit_mode'] = True
-                st.rerun()
-        with col_actions[1]:
-            if st.button("🗑️ Delete", type="secondary", use_container_width=True):
-                st.session_state['confirm_delete'] = True
-        
-        # Delete confirmation
-        if st.session_state.get('confirm_delete'):
-            st.warning(f"⚠️ Are you sure you want to delete '{site['name']}'?")
-            col_del = st.columns(2)
-            with col_del[0]:
-                if st.button("✅ Yes, Delete", type="primary"):
-                    db.delete_site(site_id)
-                    del st.session_state['selected_site_id']
-                    del st.session_state['confirm_delete']
-                    st.success("Site deleted!")
-                    st.switch_page("pages/1_Sites.py")
-            with col_del[1]:
-                if st.button("❌ Cancel"):
-                    del st.session_state['confirm_delete']
-                    st.rerun()
-    
-    st.markdown("---")
-    
-    if edit_mode:
-        # Edit form
-        with st.form("edit_site_form"):
-            st.subheader("Basic Information")
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                name = st.text_input("Site Name *", value=site.get('name', ''))
-                system_size = st.number_input(
-                    "System Size (kWp) *", 
-                    min_value=0.0, 
-                    value=float(site.get('system_size_kwp', 0)),
-                    step=0.01
-                )
-                site_type = st.selectbox(
-                    "Site Type",
-                    options=['Rooftop', 'Ground Mount'],
-                    index=0 if site.get('site_type') == 'Rooftop' else 1
-                )
-            
-            with col2:
-                contract_status = st.selectbox(
-                    "Contract Status",
-                    options=['Yes', 'No'],
-                    index=0 if site.get('contract_status') == 'Yes' else 1
-                )
-                
-                # Handle date
-                onboard_date_val = None
-                if site.get('onboard_date'):
-                    try:
-                        onboard_date_val = datetime.strptime(site['onboard_date'][:10], '%Y-%m-%d').date()
-                    except (ValueError, TypeError):
-                        pass
-                
-                onboard_date = st.date_input(
-                    "Onboard Date",
-                    value=onboard_date_val
-                )
-                
-                current_spv = site.get('spv_code', '')
-                spv_code = st.selectbox(
-                    "SPV",
-                    options=list(spv_options_with_none.keys()),
-                    format_func=lambda x: spv_options_with_none.get(x, x),
-                    index=list(spv_options_with_none.keys()).index(current_spv) if current_spv in spv_options_with_none else 0
-                )
-            
-            st.subheader("Site Fixed Costs")
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                pm_cost = st.number_input(
-                    "PM Cost (£)",
-                    min_value=0.0,
-                    value=float(site.get('pm_cost', 0)),
-                    step=0.01
-                )
-            with col2:
-                cctv_cost = st.number_input(
-                    "CCTV Cost (£)",
-                    min_value=0.0,
-                    value=float(site.get('cctv_cost', 0)),
-                    step=0.01
-                )
-            with col3:
-                cleaning_cost = st.number_input(
-                    "Cleaning Cost (£)",
-                    min_value=0.0,
-                    value=float(site.get('cleaning_cost', 0)),
-                    step=0.01
-                )
-            
-            # Submit buttons
-            col_submit = st.columns([1, 1, 3])
-            with col_submit[0]:
-                submitted = st.form_submit_button("💾 Save Changes", type="primary")
-            with col_submit[1]:
-                cancelled = st.form_submit_button("❌ Cancel")
-            
-            if submitted:
-                if not name or system_size <= 0:
-                    st.error("Name and System Size are required!")
-                else:
-                    # Get SPV ID from code
-                    spv = db.get_spv_by_code(spv_code) if spv_code else None
-                    
-                    updated = db.update_site(
-                        site_id,
-                        name=name,
-                        system_size_kwp=system_size,
-                        site_type=site_type,
-                        contract_status=contract_status,
-                        onboard_date=str(onboard_date) if onboard_date else None,
-                        pm_cost=pm_cost,
-                        cctv_cost=cctv_cost,
-                        cleaning_cost=cleaning_cost,
-                        spv_id=spv['id'] if spv else None,
-                        spv_code=spv_code if spv_code else None
-                    )
-                    
-                    if updated:
-                        st.success("Site updated successfully!")
-                        st.session_state['edit_mode'] = False
-                        st.rerun()
-                    else:
-                        st.error("Failed to update site")
-            
-            if cancelled:
-                st.session_state['edit_mode'] = False
-                st.rerun()
-    
-    else:
-        # View mode - display site details
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.subheader("Basic Information")
-            st.markdown(f"""
-            | Field | Value |
-            |-------|-------|
-            | **Site Name** | {site.get('name', '')} |
-            | **System Size** | {site.get('system_size_kwp', 0):,.2f} kWp |
-            | **Site Type** | {site.get('site_type', 'Rooftop')} |
-            | **Contract Status** | {'✅ Yes' if site.get('contract_status') == 'Yes' else '❌ No'} |
-            | **Onboard Date** | {site.get('onboard_date', '—') or '—'} |
-            | **SPV** | {site.get('spv_code', '—') or '—'} |
-            """)
-        
-        with col_right:
-            st.subheader("Site Fixed Costs")
-            st.markdown(f"""
-            | Cost Type | Amount |
-            |-----------|--------|
-            | **PM Cost** | £{site.get('pm_cost', 0):,.2f} |
-            | **CCTV Cost** | £{site.get('cctv_cost', 0):,.2f} |
-            | **Cleaning Cost** | £{site.get('cleaning_cost', 0):,.2f} |
-            | **Total Site Costs** | **£{site_with_calcs.get('site_fixed_costs', 0):,.2f}** |
-            """)
-        
-        # Fee Calculations table
-        st.markdown("---")
-        st.subheader("Fee Calculations by Portfolio Tier")
-        
-        fee_data = {
-            'Metric': ['Portfolio Cost', 'Fixed Fee (£)', 'Fee per kWp (£)'],
-            '<20MW': [
-                f"£{site_with_calcs.get('portfolio_cost_20mw', 0):,.2f}",
-                f"£{site_with_calcs.get('fixed_fee_20mw', 0):,.2f}",
-                f"{site_with_calcs.get('fee_per_kwp_20mw', 0):,.2f}" if site_with_calcs.get('fee_per_kwp_20mw', 0) > 0 else "—"
-            ],
-            '20-30MW': [
-                f"£{site_with_calcs.get('portfolio_cost_30mw', 0):,.2f}",
-                f"£{site_with_calcs.get('fixed_fee_30mw', 0):,.2f}",
-                f"{site_with_calcs.get('fee_per_kwp_30mw', 0):,.2f}" if site_with_calcs.get('fee_per_kwp_30mw', 0) > 0 else "—"
-            ],
-            '30-40MW': [
-                f"£{site_with_calcs.get('portfolio_cost_40mw', 0):,.2f}",
-                f"£{site_with_calcs.get('fixed_fee_40mw', 0):,.2f}",
-                f"{site_with_calcs.get('fee_per_kwp_40mw', 0):,.2f}" if site_with_calcs.get('fee_per_kwp_40mw', 0) > 0 else "—"
-            ],
-        }
-        
-        st.table(fee_data)
-        
-        # Monthly fee highlight
-        monthly_fee = site_with_calcs.get('monthly_fee', 0)
-        st.info(f"**Monthly Fee:** £{monthly_fee:,.2f}" + 
-                (" *(Site not contracted)*" if site.get('contract_status') != 'Yes' else ""))
 
-else:
-    # Create new site form
-    st.title("➕ Add New Site")
-    st.caption("Create a new site entry")
-    
-    if st.button("← Back to Sites"):
-        st.switch_page("pages/1_Sites.py")
-    
-    st.markdown("---")
-    
-    with st.form("create_site_form"):
-        st.subheader("Basic Information")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            name = st.text_input("Site Name *")
-            system_size = st.number_input("System Size (kWp) *", min_value=0.0, step=0.01)
-            site_type = st.selectbox("Site Type", options=['Rooftop', 'Ground Mount'])
-        
-        with col2:
-            contract_status = st.selectbox("Contract Status", options=['No', 'Yes'])
-            onboard_date = st.date_input("Onboard Date", value=None)
-            spv_code = st.selectbox(
-                "SPV",
-                options=list(spv_options_with_none.keys()),
-                format_func=lambda x: spv_options_with_none.get(x, x)
+def spv_label(code: str) -> str:
+    if not code:
+        return '— None —'
+    spv = spvs_by_code.get(code)
+    return f"{code} — {spv['name']}" if spv else code
+
+
+def site_form(existing: dict | None, key: str):
+    """Render the create/edit form. Returns (submitted, cancelled, values)."""
+    existing = existing or {}
+    with st.form(key):
+        st.subheader('Basic information')
+        c1, c2 = st.columns(2)
+        with c1:
+            name = st.text_input('Site name *', value=existing.get('name', ''), max_chars=120)
+            system_size = st.number_input(
+                'System size (kWp) *',
+                min_value=0.0,
+                value=float(existing.get('system_size_kwp') or 0),
+                step=1.0,
+                format='%.2f',
+                help='DC capacity in kilowatt-peak. 1,000 kWp = 1 MW.',
             )
-        
-        st.subheader("Site Fixed Costs")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            pm_cost = st.number_input("PM Cost (£)", min_value=0.0, step=0.01)
-        with col2:
-            cctv_cost = st.number_input("CCTV Cost (£)", min_value=0.0, step=0.01)
-        with col3:
-            cleaning_cost = st.number_input("Cleaning Cost (£)", min_value=0.0, step=0.01)
-        
-        submitted = st.form_submit_button("💾 Create Site", type="primary")
-        
-        if submitted:
-            if not name or system_size <= 0:
-                st.error("Name and System Size are required!")
-            else:
-                # Get SPV ID from code
-                spv = db.get_spv_by_code(spv_code) if spv_code else None
-                
-                new_site = db.create_site(
-                    name=name,
-                    system_size_kwp=system_size,
-                    site_type=site_type,
-                    contract_status=contract_status,
-                    onboard_date=str(onboard_date) if onboard_date else None,
-                    pm_cost=pm_cost,
-                    cctv_cost=cctv_cost,
-                    cleaning_cost=cleaning_cost,
-                    spv_id=spv['id'] if spv else None,
-                    spv_code=spv_code if spv_code else None
-                )
-                
-                if new_site:
-                    st.success(f"Site '{name}' created successfully!")
-                    st.session_state['selected_site_id'] = new_site['id']
-                    st.session_state['edit_mode'] = False
+            site_type = st.selectbox(
+                'Site type',
+                options=list(validation.SITE_TYPES),
+                index=list(validation.SITE_TYPES).index(existing.get('site_type', 'Rooftop'))
+                if existing.get('site_type') in validation.SITE_TYPES else 0,
+            )
+        with c2:
+            contract_status = st.selectbox(
+                'Contract status',
+                options=['No', 'Yes'],
+                index=1 if existing.get('contract_status') == 'Yes' else 0,
+                help='Only contracted sites generate fees, count towards the tier and accrue CM days.',
+            )
+            onboard_date = st.date_input(
+                'Onboard date',
+                value=ui.to_date(existing.get('onboard_date')),
+                format='DD/MM/YYYY',
+                help='Required for contracted sites so CM days can be tracked from the right month.',
+            )
+            current_code = existing.get('spv_code') or ''
+            options = spv_options if current_code in spv_options else spv_options + [current_code]
+            spv_code = st.selectbox(
+                'SPV', options=options, index=options.index(current_code), format_func=spv_label
+            )
+
+        st.subheader('Site fixed costs (annual, £)')
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            pm_cost = st.number_input('PM cost', min_value=0.0, value=float(existing.get('pm_cost') or 0), step=50.0, format='%.2f')
+        with k2:
+            cctv_cost = st.number_input('CCTV cost', min_value=0.0, value=float(existing.get('cctv_cost') or 0), step=50.0, format='%.2f')
+        with k3:
+            cleaning_cost = st.number_input('Cleaning cost', min_value=0.0, value=float(existing.get('cleaning_cost') or 0), step=50.0, format='%.2f')
+
+        b1, b2, _ = st.columns([1, 1, 4])
+        with b1:
+            submitted = st.form_submit_button('💾 Save' if existing else '💾 Create site', type='primary', width='stretch')
+        with b2:
+            cancelled = st.form_submit_button('Cancel', width='stretch')
+
+    values = {
+        'name': name,
+        'system_size_kwp': system_size,
+        'site_type': site_type,
+        'contract_status': contract_status,
+        'onboard_date': onboard_date.isoformat() if onboard_date else None,
+        'pm_cost': pm_cost,
+        'cctv_cost': cctv_cost,
+        'cleaning_cost': cleaning_cost,
+        'spv_code': spv_code or None,
+    }
+    return submitted, cancelled, values
+
+
+def validate_for_form(values: dict, exclude_id: str | None) -> tuple[dict, list[str], list[str]]:
+    clean, errors, warnings = validation.normalise_site(
+        values, db.get_spvs_by_code(), require_positive_size=True
+    )
+    if clean.get('name') and db.find_sites_by_name(clean['name'], exclude_id=exclude_id):
+        warnings.append(f'Another site is already called "{clean["name"]}"')
+    return clean, errors, warnings
+
+
+# ======================================================================
+# Existing site
+# ======================================================================
+if site_id:
+    site = db.get_site_by_id(site_id)
+    if not site:
+        ui.setup_page('Site not found', '📍')
+        st.error('This site no longer exists — it may have been deleted or replaced by an import.')
+        if st.button('← Back to Sites'):
+            ui.go_to_sites()
+        st.stop()
+
+    all_sites = db.get_sites()
+    tiers = db.get_rate_tiers()
+    current_tier = calculations.current_portfolio_tier(all_sites, tiers)
+    calc = calculations.calculate_site_with_all_tiers(site, tiers, current_tier['tier_name'])
+    site_issues = data_quality.issues_for_site(data_quality.check_sites(all_sites, spvs), site_id)
+
+    if edit_mode:
+        ui.setup_page('Edit Site', '✏️', site['name'])
+    else:
+        ui.setup_page(site['name'], '📍', f"{site.get('site_type', 'Rooftop')} · {site['system_size_kwp']:,.2f} kWp")
+
+    nav1, nav2, nav3, _ = st.columns([1, 1, 1, 4])
+    with nav1:
+        if st.button('← Sites', width='stretch'):
+            ui.go_to_sites()
+    if not edit_mode:
+        with nav2:
+            if st.button('✏️ Edit', width='stretch'):
+                st.session_state[ui.EDIT_MODE_KEY] = True
+                st.rerun()
+        with nav3:
+            if st.button('🗑️ Delete', width='stretch'):
+                st.session_state['confirm_delete'] = True
+
+        if st.session_state.get('confirm_delete'):
+            st.warning(f"Delete **{site['name']}**? The record will remain visible in the audit log.")
+            d1, d2, _ = st.columns([1, 1, 4])
+            with d1:
+                if st.button('✅ Yes, delete', type='primary', width='stretch'):
+                    db.delete_site(site_id)
+                    ui.clear_site_selection()
+                    st.toast(f"Deleted {site['name']}", icon='🗑️')
+                    st.switch_page('pages/1_Sites.py')
+            with d2:
+                if st.button('Cancel', width='stretch'):
+                    st.session_state.pop('confirm_delete', None)
                     st.rerun()
+
+    st.markdown('---')
+
+    if edit_mode:
+        submitted, cancelled, values = site_form(site, 'edit_site_form')
+        if cancelled:
+            st.session_state[ui.EDIT_MODE_KEY] = False
+            st.rerun()
+        if submitted:
+            clean, errors, warnings = validate_for_form(values, exclude_id=site_id)
+            if errors:
+                ui.show_errors(errors)
+            else:
+                try:
+                    db.update_site(site_id, **clean)
+                except ValidationError as exc:
+                    ui.show_errors(exc.errors)
                 else:
-                    st.error("Failed to create site")
+                    if warnings:
+                        ui.show_warnings(warnings, 'Saved, but please check:')
+                    st.session_state[ui.EDIT_MODE_KEY] = False
+                    st.toast('Site updated', icon='✅')
+                    st.rerun()
+    else:
+        if st.session_state.get('post_create_warnings'):
+            ui.show_warnings(st.session_state.pop('post_create_warnings'), 'Site created, but please check:')
+        elif site_issues:
+            ui.show_warnings([i['message'] for i in site_issues], 'Data-quality flags for this site:')
+
+        left, right = st.columns(2)
+        with left:
+            st.subheader('Basic information')
+            st.markdown(
+                f"""
+| Field | Value |
+|-------|-------|
+| **Site name** | {site['name']} |
+| **System size** | {site['system_size_kwp']:,.2f} kWp ({site['system_size_kwp'] / 1000:,.3f} MW) |
+| **Site type** | {site.get('site_type', 'Rooftop')} |
+| **Contract status** | {'✅ Contracted' if site.get('contract_status') == 'Yes' else '⬜ Not contracted'} |
+| **Onboard date** | {ui.fmt_date(site.get('onboard_date'))} |
+| **SPV** | {spv_label(site.get('spv_code') or '')} |
+"""
+            )
+        with right:
+            st.subheader('Site fixed costs (annual)')
+            st.markdown(
+                f"""
+| Cost | Amount |
+|------|--------|
+| **PM cost** | {ui.money(site.get('pm_cost'))} |
+| **CCTV cost** | {ui.money(site.get('cctv_cost'))} |
+| **Cleaning cost** | {ui.money(site.get('cleaning_cost'))} |
+| **Total site costs** | **{ui.money(calc['site_fixed_costs'])}** |
+"""
+            )
+
+        st.markdown('---')
+        st.subheader('Fee calculations by portfolio tier')
+        st.caption(
+            f"Portfolio is currently in tier **{current_tier['tier_name']}** "
+            f"(£{current_tier['rate_per_kwp']:.2f}/kWp) — highlighted column applies."
+        )
+        tier_cols = [('<20MW', '20mw'), ('20-30MW', '30mw'), ('30-40MW', '40mw')]
+        fee_rows = {
+            'Metric': ['Rate (£/kWp)', 'Portfolio cost', 'Fixed fee (annual)', 'Fee per kWp', 'Monthly fee'],
+        }
+        rates = {t['tier_name']: t['rate_per_kwp'] for t in tiers}
+        is_contracted = site.get('contract_status') == 'Yes'
+        for label, suffix in tier_cols:
+            header = f'{label} ◀ current' if label == current_tier['tier_name'] else label
+            fee_rows[header] = [
+                f"£{rates.get(label, 0):.2f}",
+                ui.money(calc[f'portfolio_cost_{suffix}']),
+                ui.money(calc[f'fixed_fee_{suffix}']),
+                ui.number(calc[f'fee_per_kwp_{suffix}'], dash_if_zero=True),
+                ui.money(calc[f'fixed_fee_{suffix}'] / 12) if is_contracted else '—',
+            ]
+        st.table(pd.DataFrame(fee_rows).set_index('Metric'))
+
+        if is_contracted:
+            st.success(
+                f"**Monthly fee at current tier: {ui.money(calc['monthly_fee'])}** "
+                f"({ui.money(calc['fixed_fee_current'])} per year)"
+            )
+        else:
+            st.info('Site is not contracted — no fees are charged and it does not count towards the tier.')
+
+        with st.expander('Record details & change history'):
+            st.caption(
+                f"Created {ui.fmt_datetime(site.get('created_at'))} · "
+                f"Updated {ui.fmt_datetime(site.get('updated_at'))} · "
+                + (f"Imported from {site['source_sheet']} row {site['source_row']}"
+                   if site.get('source_sheet') else 'Entered manually')
+                + f" · ID `{site['id']}`"
+            )
+            history = db.get_audit_log(limit=50, table_name='sites', record_id=site_id)
+            if history:
+                rows = []
+                for entry in history:
+                    if entry['action'] == 'update':
+                        changes = ', '.join(
+                            f"{k}: {entry['old_values'].get(k)!r} → {v!r}"
+                            for k, v in (entry['new_values'] or {}).items()
+                        )
+                    elif entry['action'] == 'create':
+                        changes = 'Site created'
+                    else:
+                        changes = entry['action'].title()
+                    rows.append({'When': ui.fmt_datetime(entry['timestamp']), 'Action': entry['action'], 'Changes': changes})
+                st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
+            else:
+                st.caption('No changes recorded for this site yet.')
+
+# ======================================================================
+# Create new site
+# ======================================================================
+else:
+    ui.setup_page('Add New Site', '➕', 'Create a new site entry')
+    if st.button('← Sites'):
+        ui.go_to_sites()
+    st.markdown('---')
+
+    submitted, cancelled, values = site_form(None, 'create_site_form')
+    if cancelled:
+        ui.go_to_sites()
+    if submitted:
+        clean, errors, warnings = validate_for_form(values, exclude_id=None)
+        if errors:
+            ui.show_errors(errors)
+        else:
+            try:
+                new_site = db.create_site(**clean)
+            except ValidationError as exc:
+                ui.show_errors(exc.errors)
+            else:
+                st.toast(f"Created {new_site['name']}", icon='✅')
+                if warnings:
+                    st.session_state['post_create_warnings'] = warnings
+                ui.go_to_site(new_site['id'])
