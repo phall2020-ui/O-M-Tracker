@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { SiteForm } from '@/components/sites/SiteForm';
 import { Badge } from '@/components/ui/badge';
 import { SiteWithCalculations, SPV, SiteFormData } from '@/types';
-import { formatCurrency, formatNumber } from '@/lib/calculations';
+import { formatCurrency, formatNumber, STANDARD_RATE_PER_KWP } from '@/lib/calculations';
 import {
   ArrowLeft,
   Building2,
@@ -399,12 +399,13 @@ function SiteDetailContent() {
         <div className="monthly-table-card" style={{ marginTop: '24px' }}>
           <div className="monthly-table-header">
             <div>
-              <h2>Scenario Pricing by Portfolio Tier</h2>
-              <p>Full annual build-up by tier. The applied tier is shown in Pricing Verification above.</p>
+              <h2>Scenario Pricing by Superseded Portfolio Tiers</h2>
+              <p>
+                Historical comparison only. These capacity bands no longer apply — every site prices at the
+                standing {formatCurrency(STANDARD_RATE_PER_KWP)}/kWp rate shown in Pricing Verification above.
+              </p>
             </div>
-            <span className="status-badge status-yes">
-              {formatCurrency(site.monthlyFee)}/month
-            </span>
+            <span className="badge badge-superseded">Superseded</span>
           </div>
           <div className="table-container compact-mobile-table">
             <table>
@@ -416,7 +417,7 @@ function SiteDetailContent() {
                   <th className="numeric">30-40MW</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="tier-superseded">
                 <tr>
                   <td data-label="Metric">PM cost</td>
                   <td data-label="<20MW" className="numeric">{formatCurrency(site.pmCost)}</td>

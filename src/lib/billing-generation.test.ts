@@ -17,6 +17,7 @@ function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
     systemSizeKwp: 1000,
     siteType: 'Rooftop',
     contractStatus: 'Contracted',
+    acceptedByOm: true,
     onboardDate: '2026-05-01',
     pmCost: 120,
     pmDaysOnSite: 0,
@@ -82,6 +83,10 @@ describe('billing generation', () => {
     expect(isEligibleForBilling(site({ contractStatus: 'Contracted', onboardDate: '2026-06-01' }), '2026-05')).toBe(false);
   });
 
+  it('does not bill a contracted site before O&M accepts it', () => {
+    expect(isEligibleForBilling(site({ acceptedByOm: false }), '2026-05')).toBe(false);
+  });
+
   it('freezes calculated site values into immutable snapshot input', () => {
     const snapshot = buildBillingSnapshotInput({
       contractId: 'contract-1',
@@ -141,11 +146,11 @@ describe('billing generation', () => {
 
     expect(may.contractId).toBe('contract-1');
     expect(may.sourcePayload).toContain('"contract":{"id":"contract-1"');
-    expect(may.annualFee).toBe(200 + 1000 * 2 + 25 * 12);
-    expect(may.expectedAmount).toBeCloseTo((200 + 1000 * 2) / 12 + 25, 2);
+    expect(may.annualFee).toBe(200 + 1000 * 1.7 + 25 * 12);
+    expect(may.expectedAmount).toBeCloseTo((200 + 1000 * 1.7) / 12 + 25, 2);
     expect(may.sourcePayload).toContain('"additionalCostMonthlyComment":"Temporary monitoring"');
-    expect(june.annualFee).toBe(200 + 1000 * 2);
-    expect(june.expectedAmount).toBeCloseTo((200 + 1000 * 2) / 12, 2);
+    expect(june.annualFee).toBe(200 + 1000 * 1.7);
+    expect(june.expectedAmount).toBeCloseTo((200 + 1000 * 1.7) / 12, 2);
   });
 
   it('builds refresh data for unlocked app-generated snapshots', () => {

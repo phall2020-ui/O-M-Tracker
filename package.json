@@ -17,6 +17,9 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:contractor-backfill": "npx tsx prisma/backfill-default-contractor.ts",
     "db:contract-backfill": "npx tsx prisma/apply-contract-schema-backfill.ts",
+    "db:standard-rate": "npx tsx prisma/migrate-standard-rate.ts",
+    "db:eden-contractor": "npx tsx prisma/migrate-eden-contractor.ts",
+    "db:om-acceptance": "npx tsx prisma/migrate-om-acceptance.ts",
     "db:studio": "prisma studio",
     "setup": "npm install && npm run db:push && npm run db:generate && npm run db:seed"
   },

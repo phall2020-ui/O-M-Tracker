@@ -10,6 +10,7 @@ function site(overrides: Partial<SiteWithCalculations>): SiteWithCalculations {
     systemSizeKwp: 1000,
     siteType: 'Rooftop',
     contractStatus: 'Contracted',
+    acceptedByOm: true,
     onboardDate: '2026-01-15',
     pmCost: 120,
     pmDaysOnSite: 0,
@@ -61,9 +62,29 @@ describe('SPV monthly report', () => {
     expect(report.rows[0].siteCount).toBe(2);
     expect(report.rows[0].contractedSiteCount).toBe(1);
     expect(report.rows[0].pendingSiteCount).toBe(1);
-    expect(report.rows[0].monthlyFee).toBeCloseTo(183.33, 2);
+    expect(report.rows[0].monthlyFee).toBeCloseTo(158.33, 2);
     expect(report.rows[0].correctiveDaysAllowed).toBe(0);
     expect(report.totals.contractedSiteCount).toBe(1);
+  });
+
+  it('exposes calculated site lines that reconcile exactly when snapshots do not exist', () => {
+    const report = buildSpvMonthlyReport(
+      [
+        site({ id: 'alpha', name: 'Alpha', spvCode: 'OS2', monthlyFee: 999 }),
+        site({ id: 'bravo', name: 'Bravo', spvCode: 'OS2', monthlyFee: 999 }),
+      ],
+      '2026-05'
+    );
+
+    expect(report.rows[0].siteLines).toEqual([
+      expect.objectContaining({ siteId: 'alpha', name: 'Alpha', monthlyFee: 158.33 }),
+      expect.objectContaining({ siteId: 'bravo', name: 'Bravo', monthlyFee: 158.33 }),
+    ]);
+    expect(report.rows[0].siteLines?.reduce((sum, site) => sum + site.monthlyFee, 0)).toBeCloseTo(
+      report.rows[0].monthlyFee,
+      10
+    );
+    expect(report.rows[0].monthlyFee).toBe(316.66);
   });
 
   it('rounds CM days allowed down to whole days', () => {
@@ -89,8 +110,8 @@ describe('SPV monthly report', () => {
 
     expect(report.totals.contractedCapacityKwp).toBe(21_000);
     expect(report.totals.pendingSiteCount).toBe(1);
-    expect(report.totals.variableCostAnnual).toBe(37_800);
-    expect(report.totals.monthlyFee).toBeCloseTo(3183.33, 2);
+    expect(report.totals.variableCostAnnual).toBe(35_700);
+    expect(report.totals.monthlyFee).toBeCloseTo(3008.33, 2);
   });
 
   it('groups sites without an SPV into an unassigned row', () => {
@@ -100,7 +121,7 @@ describe('SPV monthly report', () => {
     expect(report.rows[0].spvName).toBe('Unassigned');
   });
 
-  it('separates Core and Eden billing while pricing both from combined contracted capacity', () => {
+  it('separates Core and Eden billing while pricing both at the standard rate', () => {
     const report = buildSpvMonthlyReport(
       [
         site({ id: 'core', billingPortfolio: 'CORE', spvCode: 'OS2', systemSizeKwp: 15_000, siteFixedCosts: 200 }),
@@ -114,13 +135,13 @@ describe('SPV monthly report', () => {
       expect.objectContaining({
         billingPortfolio: 'CORE',
         contractedCapacityKwp: 15_000,
-        monthlyFee: (200 + 15_000 * 1.8) / 12,
+        monthlyFee: 2141.67,
         correctiveDaysAllowed: 1,
       }),
       expect.objectContaining({
         billingPortfolio: 'EDEN',
         contractedCapacityKwp: 6_000,
-        monthlyFee: (200 + 6_000 * 1.8) / 12,
+        monthlyFee: 866.67,
         correctiveDaysAllowed: 0,
       }),
     ]);
@@ -158,8 +179,8 @@ describe('SPV monthly report', () => {
     );
 
     expect(report.rows[0].siteFixedCostsAnnual).toBe(320);
-    expect(report.rows[0].annualFee).toBe(320 + 1_000 * 2 + 25 * 12);
-    expect(report.rows[0].monthlyFee).toBeCloseTo((320 + 1_000 * 2) / 12 + 25, 2);
+    expect(report.rows[0].annualFee).toBe(320 + 1_000 * 1.7 + 25 * 12);
+    expect(report.rows[0].monthlyFee).toBeCloseTo((320 + 1_000 * 1.7) / 12 + 25, 2);
   });
 
   it('excludes monthly additional costs outside the configured month range', () => {
@@ -176,7 +197,7 @@ describe('SPV monthly report', () => {
       '2026-06'
     );
 
-    expect(report.rows[0].annualFee).toBe(200 + 1_000 * 2);
-    expect(report.rows[0].monthlyFee).toBeCloseTo((200 + 1_000 * 2) / 12, 2);
+    expect(report.rows[0].annualFee).toBe(200 + 1_000 * 1.7);
+    expect(report.rows[0].monthlyFee).toBeCloseTo((200 + 1_000 * 1.7) / 12, 2);
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DEFAULT_RATE_TIERS, formatCurrency } from '@/lib/calculations';
+import { LEGACY_RATE_TIERS, STANDARD_RATE_TIER, formatCurrency } from '@/lib/calculations';
 import { Contract } from '@/types';
 
 function emptyContractForm() {
@@ -214,8 +214,9 @@ export default function SettingsPage() {
             <div className="monthly-table-header">
               <div>
                 <h2>Rate Tiers</h2>
-                <p>Current fallback portfolio cost rates by capacity tier.</p>
+                <p>All sites price at the standing rate. Capacity bands are superseded and shown for reference only.</p>
               </div>
+              <span className="badge badge-blue">{formatCurrency(STANDARD_RATE_TIER.ratePerKwp)}/kWp</span>
             </div>
             <div className="table-container compact-mobile-table">
               <table>
@@ -224,19 +225,31 @@ export default function SettingsPage() {
                     <th>Tier</th>
                     <th>Capacity Range</th>
                     <th className="numeric">Rate (£/kWp)</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {DEFAULT_RATE_TIERS.map((tier) => (
-                    <tr key={tier.id}>
-                      <td data-label="Tier" className="strong">{tier.tierName}</td>
+                  <tr className="tier-applied">
+                    <td data-label="Tier" className="strong">{STANDARD_RATE_TIER.tierName}</td>
+                    <td data-label="Capacity Range">All capacities</td>
+                    <td data-label="Rate" className="numeric">{formatCurrency(STANDARD_RATE_TIER.ratePerKwp)}</td>
+                    <td data-label="Status"><span className="status-badge status-yes">Applied</span></td>
+                  </tr>
+                  {LEGACY_RATE_TIERS.map((tier) => (
+                    <tr key={tier.id} className="tier-superseded">
+                      <td data-label="Tier">{tier.tierName}</td>
                       <td data-label="Capacity Range">{tier.minCapacityMW} - {tier.maxCapacityMW || 'open'} MW</td>
                       <td data-label="Rate" className="numeric">{formatCurrency(tier.ratePerKwp)}</td>
+                      <td data-label="Status"><span className="badge badge-superseded">Superseded</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <p className="tier-note">
+              Billing months already generated keep the rate they were generated at. Superseded bands remain
+              listed so historical snapshots referencing them stay readable.
+            </p>
           </div>
         </div>
       </div>

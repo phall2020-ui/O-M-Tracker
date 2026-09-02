@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildNotionBillingSnapshotProperties, publishNotionBillingSnapshots } from './notion-billing-publisher';
+import { buildNotionBillingSnapshotProperties, publishableBillingSnapshots, publishNotionBillingSnapshots } from './notion-billing-publisher';
 
 const prismaMock = vi.hoisted(() => ({
   contract: {
@@ -125,5 +125,30 @@ describe('Notion billing publisher', () => {
       },
       orderBy: [{ siteName: 'asc' }, { billingEntry: 'asc' }],
     });
+  });
+});
+
+describe('publishableBillingSnapshots', () => {
+  const snapshot = (billingPortfolio: string, id: string) => ({
+    id,
+    sourcePayload: JSON.stringify({ site: { billingPortfolio } }),
+  });
+
+  it('drops Eden rows from a mixed contract so they never reach the host Notion database', () => {
+    const rows = [snapshot('CORE', 'core-1'), snapshot('EDEN', 'eden-1')];
+
+    expect(publishableBillingSnapshots(rows as never).map((row) => (row as { id: string }).id)).toEqual(['core-1']);
+  });
+
+  it('publishes Eden rows when the contract is entirely Eden', () => {
+    const rows = [snapshot('EDEN', 'eden-1'), snapshot('EDEN', 'eden-2')];
+
+    expect(publishableBillingSnapshots(rows as never).map((row) => (row as { id: string }).id)).toEqual(['eden-1', 'eden-2']);
+  });
+
+  it('leaves a contract with no Eden rows untouched', () => {
+    const rows = [snapshot('CORE', 'core-1'), snapshot('CORE', 'core-2')];
+
+    expect(publishableBillingSnapshots(rows as never)).toHaveLength(2);
   });
 });

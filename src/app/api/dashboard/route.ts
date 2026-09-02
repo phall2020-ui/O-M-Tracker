@@ -7,6 +7,7 @@ import { listBillingSnapshots } from '@/lib/billing-repository';
 import { authErrorResponse, requireRole } from '@/lib/authz';
 import { ALL_ROLES } from '@/lib/permissions';
 import { resolveContractIdForUser } from '@/lib/contracts';
+import { isAcceptedContractedSite } from '@/lib/calculations';
 
 function authoritativeCapacitySources(
   summaries: Array<{ month: string; source: string; status: string; snapshotCount: number; systemSizeKwp: number }>
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       getCmMonthlyUsage(12, contractId),
       listBillingSnapshots({ contractId }),
     ]);
-    const contractedSites = sitesWithCalcs.filter(s => s.contractStatus === 'Contracted' || s.contractStatus === 'Yes');
+    const contractedSites = sitesWithCalcs.filter(isAcceptedContractedSite);
     const capacityHistory = buildCapacityHistory(authoritativeCapacitySources(billingSnapshots.summaries), currentMonth(), 12);
     
     // Capacity by SPV

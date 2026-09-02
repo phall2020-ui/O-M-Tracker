@@ -240,6 +240,17 @@ function isEdenBillingSnapshot(snapshot: BillingSnapshotForNotionPublish): boole
   }
 }
 
+/**
+ * Eden rows must not be published into a host contract's Notion billing database. That only
+ * applies while Eden sites still sit inside a mixed contract alongside Core sites — once Eden
+ * has its own contract every snapshot in it is Eden, and it publishes to its own database.
+ */
+export function publishableBillingSnapshots<T extends BillingSnapshotForNotionPublish>(snapshots: T[]): T[] {
+  const edenSnapshots = snapshots.filter(isEdenBillingSnapshot);
+  if (edenSnapshots.length === 0 || edenSnapshots.length === snapshots.length) return snapshots;
+  return snapshots.filter((snapshot) => !isEdenBillingSnapshot(snapshot));
+}
+
 async function createNotionPage(databaseId: string, snapshot: BillingSnapshotForNotionPublish): Promise<string> {
   const page = await notionFetch('/pages', {
     method: 'POST',
@@ -285,7 +296,7 @@ export async function publishNotionBillingSnapshots(
     },
     orderBy: [{ siteName: 'asc' }, { billingEntry: 'asc' }],
   });
-  const snapshots = snapshotsForSync.filter((snapshot) => !isEdenBillingSnapshot(snapshot)).slice(0, take);
+  const snapshots = publishableBillingSnapshots(snapshotsForSync).slice(0, take);
 
   const result: PublishNotionBillingSnapshotsResult = {
     month,

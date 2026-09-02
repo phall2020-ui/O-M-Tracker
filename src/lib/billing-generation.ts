@@ -123,7 +123,8 @@ function billingStartDate(site: { actualPacDate?: string | null; onboardDate: st
   return site.onboardDate || site.actualPacDate;
 }
 
-export function isEligibleForBilling(site: Pick<SiteWithCalculations, 'contractStatus' | 'onboardDate'> & { actualPacDate?: string | null }, month: string): boolean {
+export function isEligibleForBilling(site: Pick<SiteWithCalculations, 'acceptedByOm' | 'contractStatus' | 'onboardDate'> & { actualPacDate?: string | null }, month: string): boolean {
+  if (!site.acceptedByOm) return false;
   if (!isContracted(site.contractStatus)) return false;
 
   const pacDate = utcDateOnly(billingStartDate(site));

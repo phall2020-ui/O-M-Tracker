@@ -2,7 +2,7 @@
 
 import { Fragment, Suspense, useCallback, useEffect, useState } from 'react';
 import { formatCurrency, formatNumber } from '@/lib/calculations';
-import { SiteWithCalculations, SpvMonthlyReport, SpvMonthlyRow } from '@/types';
+import { SpvMonthlyReport, SpvMonthlyRow } from '@/types';
 import { Building, Zap, PoundSterling, FileText, ChevronDown, ChevronRight, Download, CalendarDays, Lock, Pencil, Plus, Trash2, Unlock } from 'lucide-react';
 import Link from 'next/link';
 import { ErrorPanel } from '@/components/ui/ErrorPanel';
@@ -41,8 +41,6 @@ function SpvsContent() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [monthControls, setMonthControls] = useState<MonthControls | null>(null);
   const [siteOptions, setSiteOptions] = useState<SiteOption[]>([]);
-  const [siteDetails, setSiteDetails] = useState<SiteWithCalculations[]>([]);
-  const [isSiteRegisterLoading, setIsSiteRegisterLoading] = useState(true);
   const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [adjustmentForm, setAdjustmentForm] = useState({
@@ -91,12 +89,10 @@ function SpvsContent() {
   }, [withContract]);
 
   const fetchSiteOptions = useCallback(async () => {
-    setIsSiteRegisterLoading(true);
     try {
       const res = await fetch(withContract('/api/sites'));
       const data = await res.json();
       if (data.success) {
-        setSiteDetails(data.data);
         setSiteOptions(data.data.map((site: SiteOption) => ({
           id: site.id,
           name: site.name,
@@ -105,8 +101,6 @@ function SpvsContent() {
       }
     } catch {
       setError('Failed to fetch sites');
-    } finally {
-      setIsSiteRegisterLoading(false);
     }
   }, [withContract]);
 
@@ -227,21 +221,18 @@ function SpvsContent() {
   const isInformationalSpvRow = (row: { spvCode: string; billingPortfolio?: string }) =>
     row.spvCode === 'UNASSIGNED' || (row.spvCode === 'EDEN' && row.billingPortfolio === 'EDEN');
   const getRowKey = (row: { spvCode: string; billingPortfolio?: string }) => `${row.billingPortfolio || 'CORE'}:${row.spvCode}`;
-  const normalizeCode = (value: string | null | undefined) => (value || '').trim().toUpperCase();
-  const sitesForSpvRow = (row: SpvMonthlyRow) => {
-    const rowSpvCode = normalizeCode(row.spvCode);
-    const rowPortfolio = normalizeCode(row.billingPortfolio || 'CORE');
-    if (row.spvCode === 'UNASSIGNED') {
-      return siteDetails.filter((site) => !normalizeCode(site.spvCode) && normalizeCode(site.billingPortfolio) !== 'EDEN');
-    }
-    if (row.spvCode === 'EDEN' && row.billingPortfolio === 'EDEN') {
-      return siteDetails.filter((site) => normalizeCode(site.billingPortfolio) === 'EDEN');
-    }
-    return siteDetails.filter((site) => (
-      normalizeCode(site.spvCode) === rowSpvCode &&
-      normalizeCode(site.billingPortfolio) === rowPortfolio
-    ));
+  const sitesForSpvRow = (row: SpvMonthlyRow) => row.siteLines || [];
+  // Carry the selected month and billing portfolio into the invoice so every displayed line
+  // comes from the same report row as the SPV and portfolio totals.
+  const spvInvoiceHref = (row: SpvMonthlyRow) => {
+    const base = withContract(`/spvs/${row.spvCode}`);
+    const query = new URLSearchParams({
+      portfolio: row.billingPortfolio || 'CORE',
+      month: report?.month || selectedMonth,
+    });
+    return `${base}${base.includes('?') ? '&' : '?'}${query.toString()}`;
   };
+
   const isLocked = Boolean(monthControls?.isLocked || report?.isLocked);
 
   if (isLoading) {
@@ -558,9 +549,6 @@ function SpvsContent() {
                     <tr
                       className="spv-expand-row"
                       onClick={() => {
-                        if (!isSiteRegisterLoading && siteDetails.length === 0) {
-                          fetchSiteOptions();
-                        }
                         setExpandedRowKey((current) => current === rowKey ? null : rowKey);
                       }}
                     >
@@ -595,7 +583,7 @@ function SpvsContent() {
                         {isInformationalSpvRow(row) ? (
                           <span className="muted-cell">n/a</span>
                         ) : (
-                          <Link href={withContract(`/spvs/${row.spvCode}`)} onClick={(event) => event.stopPropagation()}>
+                          <Link href={spvInvoiceHref(row)} onClick={(event) => event.stopPropagation()}>
                             <button className="icon-action" type="button" title={`Open ${row.spvCode} invoice`}>
                               <FileText className="h-4 w-4" />
                               <ChevronRight className="h-4 w-4" />
@@ -612,21 +600,16 @@ function SpvsContent() {
                               <div>
                                 <strong>{row.spvName} site breakdown</strong>
                                 <span>
-                                  {isSiteRegisterLoading
-                                    ? 'Loading live site register...'
-                                    : `${rowSites.length} sites shown from the live site register`}
+                                  {`${rowSites.length} ${report.source === 'billing-snapshots' ? 'billing snapshot' : 'calculated site'} lines for ${report.monthLabel}`}
                                 </span>
                               </div>
                               <button type="button" className="secondary-action" onClick={() => setExpandedRowKey(null)}>
                                 Roll Up
                               </button>
                             </div>
-                            {isSiteRegisterLoading ? (
-                              <p className="spv-site-empty">Loading sites for {row.spvCode}...</p>
-                            ) : rowSites.length === 0 ? (
+                            {rowSites.length === 0 ? (
                               <p className="spv-site-empty">
-                                No live sites are currently mapped to {row.spvCode} / {row.billingPortfolioLabel || 'Core'}.
-                                The monthly row expects {row.siteCount} sites, so refresh the register or check the SPV/portfolio mapping.
+                                No billing lines are available for {row.spvCode} / {row.billingPortfolioLabel || 'Core'} in {report.monthLabel}.
                               </p>
                             ) : (
                               <div className="table-container compact-mobile-table">
@@ -646,9 +629,11 @@ function SpvsContent() {
                                     {rowSites.map((site) => (
                                       <tr key={site.id}>
                                         <td data-label="Site">
-                                          <Link href={withContract(`/sites/${site.id}`)} className="site-link">
-                                            {site.name}
-                                          </Link>
+                                          {site.siteId ? (
+                                            <Link href={withContract(`/sites/${site.siteId}`)} className="site-link">
+                                              {site.name}
+                                            </Link>
+                                          ) : site.name}
                                         </td>
                                         <td data-label="Status">
                                           <span className={`status-badge ${site.contractStatus === 'Contracted' || site.contractStatus === 'Yes' ? 'status-yes' : 'status-no'}`}>

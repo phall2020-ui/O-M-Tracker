@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { PortfolioSummary } from '@/types';
-import { formatCurrency, formatNumber } from '@/lib/calculations';
+import { formatCurrency, formatNumber, STANDARD_RATE_TIER } from '@/lib/calculations';
 import { ContractedCapacityTrendChart } from '@/components/charts/ContractedCapacityTrendChart';
 import { CapacityChart } from '@/components/charts/CapacityChart';
 import { ContractStatusChart } from '@/components/charts/ContractStatusChart';
@@ -20,7 +20,7 @@ interface DashboardData {
   topSites: { id: string; name: string; spv: string; capacity: number; monthlyFee: number }[];
   siteTypeBreakdown: { rooftop: number; groundMount: number };
   contractStatus: { contracted: number; nonContracted: number };
-  cmUsage?: { allowedDays: number; usedDays: number; pendingDays: number; remainingDays: number };
+  cmUsage?: { allowanceCapacityKwp: number; allowedDays: number; usedDays: number; pendingDays: number; remainingDays: number };
   cmMonthlyUsage?: Array<{
     month: string;
     monthLabel: string;
@@ -65,6 +65,8 @@ function DashboardContent() {
   // Calculate CM Days
   const contractedCapacityMW = (data?.summary?.contractedCapacityKwp || 0) / 1000;
   const cmAllowed = data?.cmUsage?.allowedDays ?? contractedCapacityMW / 12;
+  // Show the capacity the allowance was actually derived from, not the portfolio-wide figure.
+  const cmAllowanceCapacityMW = (data?.cmUsage?.allowanceCapacityKwp ?? data?.summary?.contractedCapacityKwp ?? 0) / 1000;
   const cmUsed = data?.cmUsage?.usedDays ?? 0;
   const cmHistory = data?.cmMonthlyUsage?.slice(-6) || [];
   const latestCmMonth = cmHistory[cmHistory.length - 1];
@@ -152,9 +154,9 @@ function DashboardContent() {
                 <Calendar className="h-5 w-5 text-purple-600" />
               </div>
             </div>
-            <div className="card-value">{summary?.currentTier || '20-30MW'}</div>
+            <div className="card-value">{summary?.currentTier || STANDARD_RATE_TIER.tierName}</div>
             <div className="card-sub">
-              <span>£1.80</span>/kWp rate
+              <span>{formatCurrency(summary?.currentTierRatePerKwp ?? STANDARD_RATE_TIER.ratePerKwp)}</span>/kWp rate
             </div>
           </div>
         </div>
@@ -203,7 +205,7 @@ function DashboardContent() {
 
           {/* Formula */}
           <div className="formula-box">
-            <strong>Formula:</strong> CM Days Allowed = rounded down Contracted Capacity (MW) ÷ 12 = {contractedCapacityMW.toFixed(1)} MW ÷ 12 = {cmAllowed.toFixed(0)} days/month
+            <strong>Formula:</strong> CM Days Allowed = rounded down Contracted Capacity (MW) ÷ 12 = {cmAllowanceCapacityMW.toFixed(1)} MW ÷ 12 = {cmAllowed.toFixed(0)} days/month
           </div>
         </div>
 

@@ -3,8 +3,9 @@ import { GET } from './route';
 import { AppSessionUser } from '@/lib/authz';
 
 let currentUser: AppSessionUser | null = null;
-const { listSites } = vi.hoisted(() => ({
+const { listSites, activeRateTiers } = vi.hoisted(() => ({
   listSites: vi.fn(),
+  activeRateTiers: vi.fn(),
 }));
 const { resolveContractIdForUser } = vi.hoisted(() => ({
   resolveContractIdForUser: vi.fn(async (contractId: string | null | undefined) => contractId || 'contract-1'),
@@ -22,6 +23,7 @@ vi.mock('../../../../lib/authz', () => ({
 
 vi.mock('../../../../lib/portfolio-repository', () => ({
   listSites,
+  activeRateTiers,
 }));
 
 vi.mock('../../../../lib/contracts', () => ({
@@ -32,6 +34,9 @@ describe('Excel export API', () => {
   beforeEach(() => {
     currentUser = null;
     resolveContractIdForUser.mockClear();
+    activeRateTiers.mockResolvedValue([
+      { id: 'standard', contractId: 'contract-1', tierName: 'Standard', minCapacityMW: 0, maxCapacityMW: null, ratePerKwp: 1.7 },
+    ]);
     listSites.mockResolvedValue([
       {
         id: 'site-1',

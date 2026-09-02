@@ -7,6 +7,9 @@ export type CmEntryForSummary = {
 };
 
 export interface CmUsageSummary {
+  // The contracted capacity the allowance was derived from, so callers can show the
+  // same basis they show the allowance for instead of a separately-sourced figure.
+  allowanceCapacityKwp: number;
   allowedDays: number;
   usedDays: number;
   pendingDays: number;
@@ -91,6 +94,7 @@ export function summarizeCmUsage(
   );
 
   return {
+    allowanceCapacityKwp: contractedCapacityKwp,
     allowedDays,
     usedDays,
     pendingDays,

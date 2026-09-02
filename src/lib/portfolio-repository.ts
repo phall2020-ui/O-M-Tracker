@@ -7,6 +7,7 @@ import {
   currentPortfolioTier,
   DEFAULT_RATE_TIERS,
   determinePortfolioTier,
+  isAcceptedContractedSite,
 } from './calculations';
 import { BillingPortfolioCode, RateTier, Site, SiteFormData, SiteWithCalculations } from '@/types';
 import { AppSessionUser } from './authz';
@@ -59,6 +60,7 @@ export function mapPrismaSite(site: SiteWithSpv): Site {
     systemSizeKwp: site.systemSizeKwp,
     siteType: toUiSiteType(site.siteType),
     contractStatus: toUiContractStatus(site.contractStatus),
+    acceptedByOm: site.acceptedByOm,
     onboardDate: site.onboardDate ? site.onboardDate.toISOString().slice(0, 10) : null,
     forecastPacDate: site.forecastPacDate ? site.forecastPacDate.toISOString().slice(0, 10) : null,
     actualPacDate: site.actualPacDate ? site.actualPacDate.toISOString().slice(0, 10) : null,
@@ -155,10 +157,14 @@ export async function getSite(id: string, contractIdInput?: string | null): Prom
     activeRateTiers(contractId),
   ]);
   if (!site) return null;
+  // Price the site for the current month on the same basis /spvs uses: capacity visible by
+  // month end, and additional monthly costs only inside their configured window.
+  const month = currentMonth();
+  const { end } = getMonthBounds(month);
   const mappedSites = allSites.map(mapPrismaSite);
-  const contractedCapacityKwpForTier = contractedCapacityForTier(mappedSites);
+  const contractedCapacityKwpForTier = contractedCapacityForTier(mappedSites, end);
   const appliedTier = determinePortfolioTier(contractedCapacityKwpForTier / 1000, tiers);
-  return calculateSiteWithAllTiers(mapPrismaSite(site), tiers, appliedTier, null, contractedCapacityKwpForTier);
+  return calculateSiteWithAllTiers(mapPrismaSite(site), tiers, appliedTier, month, contractedCapacityKwpForTier);
 }
 
 async function refreshUnlockedAppGeneratedSnapshotsForSite(siteId: string) {
@@ -251,6 +257,7 @@ function siteInput(data: SiteFormData, spvId: string | null, contractId: string)
     systemSizeKwp: data.systemSizeKwp,
     siteType: toPrismaSiteType(data.siteType),
     contractStatus: toPrismaContractStatus(data.contractStatus),
+    ...(data.acceptedByOm === undefined ? {} : { acceptedByOm: data.acceptedByOm }),
     onboardDate: data.onboardDate ? new Date(data.onboardDate) : null,
     forecastPacDate: data.forecastPacDate ? new Date(data.forecastPacDate) : null,
     actualPacDate: data.actualPacDate ? new Date(data.actualPacDate) : null,
@@ -409,7 +416,7 @@ export async function getSpvSummaries(params: { billingPortfolio?: BillingPortfo
       const sites = spv.sites
         .map(mapPrismaSite)
         .filter((site) => !params.billingPortfolio || site.billingPortfolio === params.billingPortfolio);
-      const contractedSites = sites.filter((site) => site.contractStatus === 'Contracted' || site.contractStatus === 'Yes');
+      const contractedSites = sites.filter(isAcceptedContractedSite);
       const monthlyRevenue = contractedSites
         .map((site) => calculateSiteWithAllTiers(site, tiers, appliedTier))
         .reduce((sum, site) => sum + site.monthlyFee, 0);
@@ -470,7 +477,7 @@ export async function getSpvMonthlyReport(month?: string | null, contractIdInput
       if (!snapshot.siteId) return false;
       const site = linkedSitesById.get(snapshot.siteId);
       const startDate = site?.onboardDate || site?.actualPacDate;
-      return Boolean(site && (site.contractStatus === 'Contracted' || site.contractStatus === 'Yes') && (!startDate || new Date(`${startDate}T00:00:00.000Z`) <= end));
+      return Boolean(site && isAcceptedContractedSite(site) && (!startDate || new Date(`${startDate}T00:00:00.000Z`) <= end));
     });
     const months = await prisma.billingSnapshot.findMany({
       where: { contractId },
@@ -489,8 +496,10 @@ export async function getSpvMonthlyReport(month?: string | null, contractIdInput
         systemSizeKwp: snapshot.systemSizeKwp,
         siteFixedCostsAnnual: snapshot.siteFixedCostsAnnual,
         variableCostAnnual: snapshot.variableCostAnnual,
+        annualFee: snapshot.annualFee,
         expectedAmount: snapshot.expectedAmount,
         invoicedAmount: snapshot.invoicedAmount,
+        billingPortfolio: snapshot.siteId ? linkedSitesById.get(snapshot.siteId)?.billingPortfolio ?? null : null,
         sourcePayload: snapshot.sourcePayload,
       })),
       selectedMonth,

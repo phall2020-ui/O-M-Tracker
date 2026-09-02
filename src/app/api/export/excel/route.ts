@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUser, authErrorResponse } from '../../../../lib/authz';
-import { listSites } from '../../../../lib/portfolio-repository';
+import { activeRateTiers, listSites } from '../../../../lib/portfolio-repository';
 import { resolveContractIdForUser } from '../../../../lib/contracts';
 import {
   DEFAULT_CUSTOM_EXPORT_FIELDS,
@@ -15,7 +15,10 @@ export async function GET(request: Request) {
     const user = await requireUser();
     const url = new URL(request.url);
     const contractId = await resolveContractIdForUser(url.searchParams.get('contract'), user);
-    const sites = await listSites({ sortBy: 'systemSizeKwp', sortOrder: 'asc', contractId });
+    const [sites, tiers] = await Promise.all([
+      listSites({ sortBy: 'systemSizeKwp', sortOrder: 'asc', contractId }),
+      activeRateTiers(contractId),
+    ]);
     const mode = url.searchParams.get('mode');
     const date = new Date().toISOString().slice(0, 10);
     const requestedFields = url.searchParams.get('fields')?.split(',').map((field) => field.trim()).filter(Boolean) || [];
@@ -26,8 +29,8 @@ export async function GET(request: Request) {
     const buffer = isPipelineCostBuildUpExport
       ? await writePipelineCostBuildUpBuffer(sites)
       : isCustomExport
-        ? await writeCustomSitesExportBuffer(sites, selectedFields.length ? selectedFields : DEFAULT_CUSTOM_EXPORT_FIELDS)
-        : await writeClearsolExportBuffer(sites);
+        ? await writeCustomSitesExportBuffer(sites, selectedFields.length ? selectedFields : DEFAULT_CUSTOM_EXPORT_FIELDS, tiers)
+        : await writeClearsolExportBuffer(sites, tiers);
     const filename = isPipelineCostBuildUpExport
       ? `clearsol-pipeline-cost-build-up-${date}.xlsx`
       : isCustomExport

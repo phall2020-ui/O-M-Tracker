@@ -106,6 +106,7 @@ model Site {
   systemSizeKwp  Float
   siteType       String    @default("ROOFTOP")
   contractStatus String    @default("NO")
+  acceptedByOm   Boolean   @default(false)
   onboardDate    DateTime?
   forecastPacDate DateTime?
   actualPacDate   DateTime?
