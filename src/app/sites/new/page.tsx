@@ -22,7 +22,7 @@ export default function NewSitePage() {
       if (data.success) {
         setSpvs(data.data);
       }
-    } catch (err) {
+    } catch {
       console.error('Failed to fetch SPVs');
     }
   };
@@ -43,7 +43,7 @@ export default function NewSitePage() {
       } else {
         alert(data.error || 'Failed to create site');
       }
-    } catch (err) {
+    } catch {
       alert('Failed to create site');
     } finally {
       setIsSaving(false);

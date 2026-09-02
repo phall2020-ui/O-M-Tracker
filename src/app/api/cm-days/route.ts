@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSites, getCMDaysUsage, upsertCMDaysUsage } from '@/lib/db';
 import { calculateCMDaysTracking } from '@/lib/calculations';
+import { ValidationError } from '@/lib/validation';
 
 export async function GET() {
   try {
@@ -65,6 +66,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ success: false, error: error.errors.join('; ') }, { status: 400 });
+    }
     console.error('Error updating CM days usage:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update CM days usage' },

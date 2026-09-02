@@ -1,0 +1,6 @@
+# Streamlit application dependencies
+# streamlit >= 1.50 is required for st.page_link, st.dataframe row selection,
+# stacked bar charts and the `width` layout API used throughout the app.
+streamlit>=1.50.0
+pandas>=2.0.0
+openpyxl>=3.1.0

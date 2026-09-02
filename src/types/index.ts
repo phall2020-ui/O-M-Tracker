@@ -56,6 +56,9 @@ export interface SiteWithCalculations extends Site {
   
   // Monthly fee (based on current portfolio tier)
   monthlyFee: number;
+  applicableTier: string;
+  fixedFeeCurrent: number;
+  feePerKwpCurrent: number;
 }
 
 export interface PortfolioSummary {
@@ -64,9 +67,26 @@ export interface PortfolioSummary {
   totalCapacityKwp: number;
   contractedCapacityKwp: number;
   currentTier: string;
+  currentRatePerKwp: number;
   totalMonthlyFee: number;
+  totalAnnualFee: number;
+  totalSiteFixedCosts: number;
   correctiveDaysAllowed: number;
   sitesBySpv: Record<string, number>;
+  capacityBySpv: Record<string, number>;
+  mwToNextTier: number;
+  nextTierName: string | null;
+  tierProgress: number;
+}
+
+export interface AuditEntry {
+  id: string;
+  tableName: string;
+  recordId: string;
+  action: string;
+  oldValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
+  timestamp: string;
 }
 
 export interface SiteFormData {

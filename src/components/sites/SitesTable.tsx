@@ -16,7 +16,7 @@ import { formatCurrency, formatNumber } from '@/lib/calculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowUpDown, ChevronDown, ChevronUp, Search, Eye, Pencil, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Search, Eye, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 const columnHelper = createColumnHelper<SiteWithCalculations>();
@@ -26,9 +26,11 @@ interface SitesTableProps {
   onEdit?: (site: SiteWithCalculations) => void;
   onDelete?: (site: SiteWithCalculations) => void;
   isLoading?: boolean;
+  issueSiteIds?: Set<string>;
+  currentTierName?: string;
 }
 
-export function SitesTable({ data, onEdit, onDelete, isLoading }: SitesTableProps) {
+export function SitesTable({ data, onEdit, onDelete, isLoading, issueSiteIds, currentTierName }: SitesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
@@ -46,12 +48,15 @@ export function SitesTable({ data, onEdit, onDelete, isLoading }: SitesTableProp
           </button>
         ),
         cell: (info) => (
-          <Link 
-            href={`/sites/${info.row.original.id}`}
-            className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            {info.getValue()}
-          </Link>
+          <span className="inline-flex items-center gap-2">
+            {issueSiteIds?.has(info.row.original.id) && <span title="Has data-quality issues">⚠️</span>}
+            <Link 
+              href={`/sites/${info.row.original.id}`}
+              className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              {info.getValue()}
+            </Link>
+          </span>
         ),
       }),
       columnHelper.accessor('systemSizeKwp', {
@@ -98,12 +103,12 @@ export function SitesTable({ data, onEdit, onDelete, isLoading }: SitesTableProp
         header: 'Site Costs',
         cell: (info) => formatCurrency(info.getValue()),
       }),
-      columnHelper.accessor('fixedFee_20MW', {
-        header: 'Fixed Fee (<20MW)',
+      columnHelper.accessor('fixedFeeCurrent', {
+        header: currentTierName ? `Fixed Fee (${currentTierName})` : 'Fixed Fee',
         cell: (info) => formatCurrency(info.getValue()),
       }),
-      columnHelper.accessor('feePerKwp_20MW', {
-        header: '£/kWp (<20MW)',
+      columnHelper.accessor('feePerKwpCurrent', {
+        header: currentTierName ? `£/kWp (${currentTierName})` : '£/kWp',
         cell: (info) => {
           const val = info.getValue();
           return val > 0 ? formatNumber(val, 2) : <span className="text-gray-400">—</span>;
@@ -158,7 +163,7 @@ export function SitesTable({ data, onEdit, onDelete, isLoading }: SitesTableProp
         ),
       }),
     ],
-    [onEdit, onDelete]
+    [onEdit, onDelete, issueSiteIds, currentTierName]
   );
 
   const table = useReactTable({

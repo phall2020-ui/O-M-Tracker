@@ -49,4 +49,4 @@ __pycache__/
 *.egg-info/
 *.egg
 *.db
-.streamlit/
+.streamlit/secrets.toml

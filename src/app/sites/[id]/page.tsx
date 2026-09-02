@@ -23,38 +23,27 @@ export default function SiteDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSite();
-    fetchSpvs();
+    let cancelled = false;
+    (async () => {
+      try {
+        const [siteRes, spvRes] = await Promise.all([
+          fetch(`/api/sites/${params.id}`),
+          fetch('/api/spvs'),
+        ]);
+        const siteData = await siteRes.json();
+        const spvData = await spvRes.json();
+        if (cancelled) return;
+        if (siteData.success) setSite(siteData.data);
+        else setError(siteData.error || 'Site not found');
+        if (spvData.success) setSpvs(spvData.data);
+      } catch {
+        if (!cancelled) setError('Failed to fetch site');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [params.id]);
-
-  const fetchSite = async () => {
-    try {
-      const res = await fetch(`/api/sites/${params.id}`);
-      const data = await res.json();
-      
-      if (data.success) {
-        setSite(data.data);
-      } else {
-        setError(data.error || 'Site not found');
-      }
-    } catch (err) {
-      setError('Failed to fetch site');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchSpvs = async () => {
-    try {
-      const res = await fetch('/api/spvs');
-      const data = await res.json();
-      if (data.success) {
-        setSpvs(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch SPVs');
-    }
-  };
 
   const handleUpdate = async (formData: SiteFormData) => {
     setIsSaving(true);
@@ -73,7 +62,7 @@ export default function SiteDetailPage() {
       } else {
         alert(data.error || 'Failed to update site');
       }
-    } catch (err) {
+    } catch {
       alert('Failed to update site');
     } finally {
       setIsSaving(false);
@@ -95,7 +84,7 @@ export default function SiteDetailPage() {
       } else {
         alert('Failed to delete site');
       }
-    } catch (err) {
+    } catch {
       alert('Failed to delete site');
     }
   };
@@ -240,6 +229,9 @@ export default function SiteDetailPage() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Fee Calculations by Portfolio Tier</CardTitle>
+              <p className="text-sm text-gray-500 font-normal">
+                Applicable monthly fee uses the portfolio&apos;s current tier ({site.applicableTier}).
+              </p>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -247,9 +239,9 @@ export default function SiteDetailPage() {
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-4 font-medium text-gray-500">Metric</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-500">&lt;20MW</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-500">20-30MW</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-500">30-40MW</th>
+                      <th className={`text-right py-2 px-4 font-medium ${site.applicableTier === '<20MW' ? 'text-blue-700' : 'text-gray-500'}`}>&lt;20MW</th>
+                      <th className={`text-right py-2 px-4 font-medium ${site.applicableTier === '20-30MW' ? 'text-blue-700' : 'text-gray-500'}`}>20-30MW</th>
+                      <th className={`text-right py-2 px-4 font-medium ${site.applicableTier === '30-40MW' ? 'text-blue-700' : 'text-gray-500'}`}>30-40MW</th>
                     </tr>
                   </thead>
                   <tbody>

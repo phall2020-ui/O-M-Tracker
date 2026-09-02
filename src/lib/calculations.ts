@@ -38,9 +38,24 @@ export function determinePortfolioTier(totalCapacityMW: number, tiers: RateTier[
   return tiers[tiers.length - 1];
 }
 
+export function nextTierProgress(totalCapacityMW: number, tiers: RateTier[] = DEFAULT_RATE_TIERS) {
+  const ordered = [...tiers].sort((a, b) => a.minCapacityMW - b.minCapacityMW);
+  const current = determinePortfolioTier(totalCapacityMW, ordered);
+  const index = ordered.findIndex((t) => t.id === current.id);
+  const next = index >= 0 && index + 1 < ordered.length ? ordered[index + 1] : null;
+  const lower = current.minCapacityMW || 0;
+  const upper = current.maxCapacityMW;
+  const progress = upper === null || upper <= lower
+    ? 1
+    : Math.max(0, Math.min(1, (totalCapacityMW - lower) / (upper - lower)));
+  const mwToNext = upper === null ? 0 : Math.max(0, upper - totalCapacityMW);
+  return { current, next, mwToNext, progress };
+}
+
 export function calculateSiteWithAllTiers(
   site: Site,
-  tiers: RateTier[] = DEFAULT_RATE_TIERS
+  tiers: RateTier[] = DEFAULT_RATE_TIERS,
+  currentTierName?: string
 ): SiteWithCalculations {
   const siteFixedCosts = calculateSiteFixedCosts(site);
   const isContracted = site.contractStatus === 'Yes';
@@ -61,9 +76,15 @@ export function calculateSiteWithAllTiers(
   const feePerKwp_20MW = calculateFeePerKwp(fixedFee_20MW, site.systemSizeKwp, isContracted);
   const feePerKwp_30MW = calculateFeePerKwp(fixedFee_30MW, site.systemSizeKwp, isContracted);
   const feePerKwp_40MW = calculateFeePerKwp(fixedFee_40MW, site.systemSizeKwp, isContracted);
-  
-  // Monthly fee based on <20MW tier (default)
-  const monthlyFee = isContracted ? calculateMonthlyFee(fixedFee_20MW) : 0;
+
+  const feeByTier: Record<string, [number, number]> = {
+    [tier20MW.tierName]: [fixedFee_20MW, feePerKwp_20MW],
+    [tier30MW.tierName]: [fixedFee_30MW, feePerKwp_30MW],
+    [tier40MW.tierName]: [fixedFee_40MW, feePerKwp_40MW],
+  };
+  const applicableTier = currentTierName && feeByTier[currentTierName] ? currentTierName : tier20MW.tierName;
+  const [fixedFeeCurrent, feePerKwpCurrent] = feeByTier[applicableTier];
+  const monthlyFee = isContracted ? calculateMonthlyFee(fixedFeeCurrent) : 0;
   
   return {
     ...site,
@@ -77,29 +98,46 @@ export function calculateSiteWithAllTiers(
     feePerKwp_20MW,
     feePerKwp_30MW,
     feePerKwp_40MW,
+    applicableTier,
+    fixedFeeCurrent,
+    feePerKwpCurrent,
     monthlyFee,
   };
 }
 
-export function calculatePortfolioSummary(sites: Site[]): PortfolioSummary {
+export function currentPortfolioTier(sites: Site[], tiers: RateTier[] = DEFAULT_RATE_TIERS): RateTier {
+  const contractedKwp = sites
+    .filter((s) => s.contractStatus === 'Yes')
+    .reduce((sum, s) => sum + s.systemSizeKwp, 0);
+  return determinePortfolioTier(contractedKwp / 1000, tiers);
+}
+
+export function calculateSitesAtCurrentTier(sites: Site[], tiers: RateTier[] = DEFAULT_RATE_TIERS) {
+  const tier = currentPortfolioTier(sites, tiers);
+  return { sites: sites.map((s) => calculateSiteWithAllTiers(s, tiers, tier.tierName)), tier };
+}
+
+export function calculatePortfolioSummary(sites: Site[], tiers: RateTier[] = DEFAULT_RATE_TIERS): PortfolioSummary {
   const contractedSites = sites.filter(s => s.contractStatus === 'Yes');
   const totalCapacityKwp = sites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
   const contractedCapacityKwp = contractedSites.reduce((sum, s) => sum + s.systemSizeKwp, 0);
   
-  const currentTier = determinePortfolioTier(contractedCapacityKwp / 1000);
+  const currentTier = determinePortfolioTier(contractedCapacityKwp / 1000, tiers);
+  const progress = nextTierProgress(contractedCapacityKwp / 1000, tiers);
   
-  // Calculate total monthly fee
-  const sitesWithCalcs = contractedSites.map(s => calculateSiteWithAllTiers(s));
+  const sitesWithCalcs = contractedSites.map(s => calculateSiteWithAllTiers(s, tiers, currentTier.tierName));
   const totalMonthlyFee = sitesWithCalcs.reduce((sum, s) => sum + s.monthlyFee, 0);
+  const totalAnnualFee = sitesWithCalcs.reduce((sum, s) => sum + s.fixedFeeCurrent, 0);
+  const totalSiteFixedCosts = sitesWithCalcs.reduce((sum, s) => sum + s.siteFixedCosts, 0);
   
-  // Corrective days calculation
   const correctiveDaysAllowed = calculateMonthlyCorrectiveDays(contractedCapacityKwp / 1000);
   
-  // Sites by SPV
   const sitesBySpv: Record<string, number> = {};
+  const capacityBySpv: Record<string, number> = {};
   sites.forEach(site => {
     const spv = site.spvCode || 'Unassigned';
     sitesBySpv[spv] = (sitesBySpv[spv] || 0) + 1;
+    capacityBySpv[spv] = (capacityBySpv[spv] || 0) + (site.systemSizeKwp || 0);
   });
   
   return {
@@ -108,9 +146,16 @@ export function calculatePortfolioSummary(sites: Site[]): PortfolioSummary {
     totalCapacityKwp,
     contractedCapacityKwp,
     currentTier: currentTier.tierName,
+    currentRatePerKwp: currentTier.ratePerKwp,
     totalMonthlyFee,
+    totalAnnualFee,
+    totalSiteFixedCosts,
     correctiveDaysAllowed,
     sitesBySpv,
+    capacityBySpv,
+    mwToNextTier: progress.mwToNext,
+    nextTierName: progress.next?.tierName ?? null,
+    tierProgress: progress.progress,
   };
 }
 

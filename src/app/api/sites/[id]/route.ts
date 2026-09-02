@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSiteById, updateSite, deleteSite, getSpvByCode } from '@/lib/db';
-import { calculateSiteWithAllTiers } from '@/lib/calculations';
+import { getSiteById, getSites, updateSite, deleteSite, resolveSpv } from '@/lib/db';
+import { calculateSiteWithAllTiers, currentPortfolioTier } from '@/lib/calculations';
 import { SiteFormData } from '@/types';
+import { ValidationError } from '@/lib/validation';
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
       );
     }
     
-    const siteWithCalcs = calculateSiteWithAllTiers(site);
+    const siteWithCalcs = calculateSiteWithAllTiers(site, undefined, currentPortfolioTier(getSites()).tierName);
     
     return NextResponse.json({
       success: true,
@@ -49,19 +50,17 @@ export async function PUT(
       );
     }
     
-    // Get SPV code if spvId changed
+    let spvId = existingSite.spvId;
     let spvCode = existingSite.spvCode;
     if (body.spvId !== undefined) {
-      if (body.spvId) {
-        const spv = getSpvByCode(body.spvId);
-        spvCode = spv?.code || null;
-      } else {
-        spvCode = null;
-      }
+      const spv = resolveSpv(body.spvId);
+      spvId = spv?.id || null;
+      spvCode = spv?.code || null;
     }
     
     const updatedSite = updateSite(id, {
       ...body,
+      spvId,
       spvCode,
     });
     
@@ -72,13 +71,20 @@ export async function PUT(
       );
     }
     
-    const siteWithCalcs = calculateSiteWithAllTiers(updatedSite);
+    const siteWithCalcs = calculateSiteWithAllTiers(
+      updatedSite,
+      undefined,
+      currentPortfolioTier(getSites()).tierName
+    );
     
     return NextResponse.json({
       success: true,
       data: siteWithCalcs,
     });
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ success: false, error: error.errors.join('; '), errors: error.errors }, { status: 400 });
+    }
     console.error('Error updating site:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to update site' },

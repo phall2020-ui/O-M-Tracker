@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -17,36 +17,36 @@ interface SiteFormProps {
   isLoading?: boolean;
 }
 
+function formFromSite(site: SiteWithCalculations, spvs: SPV[]): SiteFormData {
+  return {
+    name: site.name,
+    systemSizeKwp: site.systemSizeKwp,
+    siteType: site.siteType,
+    contractStatus: site.contractStatus,
+    onboardDate: site.onboardDate,
+    pmCost: site.pmCost,
+    cctvCost: site.cctvCost,
+    cleaningCost: site.cleaningCost,
+    spvId: site.spvId || spvs.find((s) => s.code === site.spvCode)?.id || null,
+  };
+}
+
 export function SiteForm({ site, spvs, onSubmit, onCancel, isLoading }: SiteFormProps) {
-  const [formData, setFormData] = useState<SiteFormData>({
-    name: '',
-    systemSizeKwp: 0,
-    siteType: 'Rooftop',
-    contractStatus: 'No',
-    onboardDate: null,
-    pmCost: 0,
-    cctvCost: 0,
-    cleaningCost: 0,
-    spvId: null,
-  });
+  const [formData, setFormData] = useState<SiteFormData>(() =>
+    site ? formFromSite(site, spvs) : {
+      name: '',
+      systemSizeKwp: 0,
+      siteType: 'Rooftop',
+      contractStatus: 'No',
+      onboardDate: null,
+      pmCost: 0,
+      cctvCost: 0,
+      cleaningCost: 0,
+      spvId: null,
+    }
+  );
 
   const [errors, setErrors] = useState<Partial<Record<keyof SiteFormData, string>>>({});
-
-  useEffect(() => {
-    if (site) {
-      setFormData({
-        name: site.name,
-        systemSizeKwp: site.systemSizeKwp,
-        siteType: site.siteType,
-        contractStatus: site.contractStatus,
-        onboardDate: site.onboardDate,
-        pmCost: site.pmCost,
-        cctvCost: site.cctvCost,
-        cleaningCost: site.cleaningCost,
-        spvId: site.spvCode,
-      });
-    }
-  }, [site]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -194,7 +194,7 @@ export function SiteForm({ site, spvs, onSubmit, onCancel, isLoading }: SiteForm
                 >
                   <option value="">Select SPV...</option>
                   {spvs.map((spv) => (
-                    <option key={spv.id} value={spv.code}>
+                    <option key={spv.id} value={spv.id}>
                       {spv.code} - {spv.name}
                     </option>
                   ))}
