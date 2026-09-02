@@ -75,6 +75,34 @@ def determine_portfolio_tier(total_capacity_mw: float, tiers: Optional[list[dict
     return tiers[-1] if tiers else DEFAULT_RATE_TIERS[-1]
 
 
+def next_tier_progress(total_capacity_mw: float, tiers: Optional[list[dict]] = None) -> dict:
+    """
+    Describe where the portfolio sits within its current tier band.
+    Returns current tier, the next tier (or None at the top band), the MW
+    still needed to reach it, and a 0-1 progress fraction through the band.
+    """
+    if tiers is None:
+        tiers = db.get_rate_tiers() or DEFAULT_RATE_TIERS
+    ordered = sorted(tiers, key=lambda t: t['min_capacity_mw'])
+    current = determine_portfolio_tier(total_capacity_mw, ordered)
+    index = next((i for i, t in enumerate(ordered) if t['id'] == current['id']), len(ordered) - 1)
+    next_tier = ordered[index + 1] if index + 1 < len(ordered) else None
+    lower = current.get('min_capacity_mw') or 0
+    upper = current.get('max_capacity_mw')
+    if upper is None or upper <= lower:
+        progress = 1.0
+        mw_to_next = 0.0
+    else:
+        progress = max(0.0, min(1.0, (total_capacity_mw - lower) / (upper - lower)))
+        mw_to_next = max(0.0, upper - total_capacity_mw)
+    return {
+        'current_tier': current,
+        'next_tier': next_tier,
+        'mw_to_next_tier': round(mw_to_next, 3),
+        'progress': progress,
+    }
+
+
 def calculate_corrective_days(contracted_capacity_kwp: float) -> float:
     """
     Calculate corrective days allowed.
@@ -85,10 +113,18 @@ def calculate_corrective_days(contracted_capacity_kwp: float) -> float:
 
 # ============ Site Calculation Functions ============
 
-def calculate_site_with_all_tiers(site: dict, tiers: Optional[list[dict]] = None) -> dict:
+def calculate_site_with_all_tiers(
+    site: dict,
+    tiers: Optional[list[dict]] = None,
+    current_tier_name: Optional[str] = None,
+) -> dict:
     """
     Calculate all fee metrics for a site across all tiers.
     Returns the site dict with additional calculated fields.
+
+    ``current_tier_name`` selects which tier the site's applicable fixed fee
+    and monthly fee are based on. When omitted the <20MW tier is used, which
+    matches the spreadsheet's default column.
     """
     if tiers is None:
         tiers = db.get_rate_tiers() or DEFAULT_RATE_TIERS
@@ -123,8 +159,15 @@ def calculate_site_with_all_tiers(site: dict, tiers: Optional[list[dict]] = None
     fee_per_kwp_30mw = calculate_fee_per_kwp(fixed_fee_30mw, system_size, is_contracted)
     fee_per_kwp_40mw = calculate_fee_per_kwp(fixed_fee_40mw, system_size, is_contracted)
     
-    # Monthly fee based on <20MW tier (default)
-    monthly_fee = calculate_monthly_fee(fixed_fee_20mw) if is_contracted else 0
+    # Applicable fee follows the portfolio's current tier (defaults to <20MW)
+    fixed_fee_by_tier = {
+        tier_20mw['tier_name']: (fixed_fee_20mw, fee_per_kwp_20mw),
+        tier_30mw['tier_name']: (fixed_fee_30mw, fee_per_kwp_30mw),
+        tier_40mw['tier_name']: (fixed_fee_40mw, fee_per_kwp_40mw),
+    }
+    applicable_tier = current_tier_name if current_tier_name in fixed_fee_by_tier else tier_20mw['tier_name']
+    fixed_fee_current, fee_per_kwp_current = fixed_fee_by_tier[applicable_tier]
+    monthly_fee = calculate_monthly_fee(fixed_fee_current) if is_contracted else 0
     
     # Return site with calculations
     return {
@@ -139,34 +182,67 @@ def calculate_site_with_all_tiers(site: dict, tiers: Optional[list[dict]] = None
         'fee_per_kwp_20mw': fee_per_kwp_20mw,
         'fee_per_kwp_30mw': fee_per_kwp_30mw,
         'fee_per_kwp_40mw': fee_per_kwp_40mw,
+        'applicable_tier': applicable_tier,
+        'fixed_fee_current': fixed_fee_current,
+        'fee_per_kwp_current': fee_per_kwp_current,
         'monthly_fee': monthly_fee,
     }
 
 
-def calculate_portfolio_summary(sites: list[dict]) -> dict:
+def current_portfolio_tier(sites: list[dict], tiers: Optional[list[dict]] = None) -> dict:
+    """The rate tier the portfolio's contracted capacity currently falls in."""
+    contracted_kwp = sum(s.get('system_size_kwp', 0) for s in sites if s.get('contract_status') == 'Yes')
+    return determine_portfolio_tier(contracted_kwp / 1000, tiers)
+
+
+def calculate_sites_at_current_tier(
+    sites: list[dict],
+    tiers: Optional[list[dict]] = None,
+) -> tuple[list[dict], dict]:
+    """
+    Calculate every site with fees based on the portfolio's *actual* tier.
+    Returns ``(sites_with_calcs, current_tier)`` so pages show consistent
+    numbers with the dashboard.
+    """
+    if tiers is None:
+        tiers = db.get_rate_tiers() or DEFAULT_RATE_TIERS
+    tier = current_portfolio_tier(sites, tiers)
+    calculated = [calculate_site_with_all_tiers(s, tiers, tier['tier_name']) for s in sites]
+    return calculated, tier
+
+
+def calculate_portfolio_summary(sites: list[dict], tiers: Optional[list[dict]] = None) -> dict:
     """
     Calculate portfolio-level summary statistics.
     """
+    if tiers is None:
+        tiers = db.get_rate_tiers() or DEFAULT_RATE_TIERS
     contracted_sites = [s for s in sites if s.get('contract_status') == 'Yes']
     
     total_capacity_kwp = sum(s.get('system_size_kwp', 0) for s in sites)
     contracted_capacity_kwp = sum(s.get('system_size_kwp', 0) for s in contracted_sites)
     
     # Determine current tier
-    current_tier = determine_portfolio_tier(contracted_capacity_kwp / 1000)
+    current_tier = determine_portfolio_tier(contracted_capacity_kwp / 1000, tiers)
     
-    # Calculate total monthly fee
-    sites_with_calcs = [calculate_site_with_all_tiers(s) for s in contracted_sites]
+    # Total monthly fee at the tier the portfolio is actually in
+    sites_with_calcs = [
+        calculate_site_with_all_tiers(s, tiers, current_tier['tier_name']) for s in contracted_sites
+    ]
     total_monthly_fee = sum(s.get('monthly_fee', 0) for s in sites_with_calcs)
+    total_annual_fee = sum(s.get('fixed_fee_current', 0) for s in sites_with_calcs)
+    total_site_fixed_costs = sum(s.get('site_fixed_costs', 0) for s in sites_with_calcs)
     
     # Corrective days calculation
     corrective_days_allowed = calculate_corrective_days(contracted_capacity_kwp)
     
     # Sites by SPV
     sites_by_spv = {}
+    capacity_by_spv = {}
     for site in sites:
         spv = site.get('spv_code') or 'Unassigned'
         sites_by_spv[spv] = sites_by_spv.get(spv, 0) + 1
+        capacity_by_spv[spv] = capacity_by_spv.get(spv, 0) + (site.get('system_size_kwp') or 0)
     
     return {
         'total_sites': len(sites),
@@ -174,9 +250,13 @@ def calculate_portfolio_summary(sites: list[dict]) -> dict:
         'total_capacity_kwp': total_capacity_kwp,
         'contracted_capacity_kwp': contracted_capacity_kwp,
         'current_tier': current_tier.get('tier_name', 'N/A'),
+        'current_rate_per_kwp': current_tier.get('rate_per_kwp'),
         'total_monthly_fee': total_monthly_fee,
+        'total_annual_fee': total_annual_fee,
+        'total_site_fixed_costs': total_site_fixed_costs,
         'corrective_days_allowed': corrective_days_allowed,
         'sites_by_spv': sites_by_spv,
+        'capacity_by_spv': capacity_by_spv,
     }
 
 
