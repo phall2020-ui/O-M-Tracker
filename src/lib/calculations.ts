@@ -96,9 +96,9 @@ export function isSiteVisibleByMonthEnd(site: { actualPacDate?: string | null; o
 }
 
 export function isOperationalPortfolioSite(
-  site: Pick<Site, 'acceptedByOm' | 'contractStatus' | 'onboardDate'>
+  site: Pick<Site, 'acceptedByOm' | 'contractStatus'>
 ): boolean {
-  return isAcceptedContractedSite(site) && Boolean(site.onboardDate);
+  return isAcceptedContractedSite(site);
 }
 
 export function contractedCapacityForTier(

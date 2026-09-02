@@ -6,6 +6,7 @@ import {
   currentPortfolioTier,
   DEFAULT_RATE_TIERS,
   isLegacyTierName,
+  isOperationalPortfolioSite,
   STANDARD_RATE_PER_KWP,
 } from './calculations';
 import { Site } from '@/types';
@@ -65,6 +66,11 @@ describe('portfolio calculations', () => {
     expect(summary.contractedSites).toBe(0);
     expect(summary.contractedCapacityKwp).toBe(0);
     expect(summary.totalMonthlyFee).toBe(0);
+  });
+
+  it('moves an accepted contracted site into the operational register without an onboard date', () => {
+    expect(isOperationalPortfolioSite(site({ onboardDate: null }))).toBe(true);
+    expect(isOperationalPortfolioSite(site({ acceptedByOm: false, onboardDate: null }))).toBe(false);
   });
 
   it('prices pipeline capacity at the standing annual portfolio rate', () => {
