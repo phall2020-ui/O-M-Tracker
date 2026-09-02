@@ -1,0 +1,14 @@
+services:
+  portfolio-tracker:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      CLEARSOL_DB_PATH: /data/clearsol_portfolio.db
+      APP_PASSWORD: ${APP_PASSWORD:-}
+    volumes:
+      - portfolio-data:/data
+    restart: unless-stopped
+
+volumes:
+  portfolio-data:

@@ -1,9 +1,6 @@
+node_modules
+.next
 .git
-.github
 legacy
-**/__pycache__
-**/*.db
-**/.pytest_cache
-**/node_modules
-.streamlit/secrets.toml
 *.md
+.github
