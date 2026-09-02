@@ -5,7 +5,10 @@ navigation state so every page looks and behaves the same way.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import io
+import os
 from datetime import date, datetime
 from typing import Optional
 
@@ -78,6 +81,45 @@ _CSS = """
 
 # ============ Page chrome ============
 
+def app_password() -> Optional[str]:
+    """Password from APP_PASSWORD env or Streamlit secrets. Empty means no login."""
+    env = (os.environ.get('APP_PASSWORD') or '').strip()
+    if env:
+        return env
+    try:
+        secret = st.secrets.get('APP_PASSWORD')
+    except Exception:
+        return None
+    if secret is None:
+        return None
+    return str(secret).strip() or None
+
+
+def passwords_match(entered: str, expected: str) -> bool:
+    """Constant-time comparison via SHA-256 (lengths need not match)."""
+    left = hashlib.sha256(entered.encode('utf-8')).digest()
+    right = hashlib.sha256(expected.encode('utf-8')).digest()
+    return hmac.compare_digest(left, right)
+
+
+def _require_auth() -> None:
+    password = app_password()
+    if not password or st.session_state.get('_authenticated'):
+        return
+    st.markdown(_CSS, unsafe_allow_html=True)
+    st.title('⚡ Clearsol O&M')
+    st.caption('Sign in to continue')
+    with st.form('login'):
+        entered = st.text_input('Password', type='password')
+        submitted = st.form_submit_button('Sign in', type='primary')
+    if submitted:
+        if passwords_match(entered, password):
+            st.session_state['_authenticated'] = True
+            st.rerun()
+        st.error('Incorrect password')
+    st.stop()
+
+
 def setup_page(title: str, icon: str = '⚡', subtitle: Optional[str] = None) -> None:
     """Call first on every page: configures the page, CSS and sidebar."""
     st.set_page_config(
@@ -86,6 +128,7 @@ def setup_page(title: str, icon: str = '⚡', subtitle: Optional[str] = None) ->
         layout='wide',
         initial_sidebar_state='expanded',
     )
+    _require_auth()
     st.markdown(_CSS, unsafe_allow_html=True)
     _render_sidebar()
     st.title(f'{icon} {title}')
@@ -111,6 +154,10 @@ def _render_sidebar() -> None:
             st.markdown(_HIDE_DEFAULT_NAV_CSS, unsafe_allow_html=True)
         st.markdown('---')
         _render_sidebar_summary()
+        if app_password() and st.session_state.get('_authenticated'):
+            if st.button('Sign out', width='stretch'):
+                st.session_state.pop('_authenticated', None)
+                st.rerun()
 
 
 def _render_sidebar_summary() -> None:

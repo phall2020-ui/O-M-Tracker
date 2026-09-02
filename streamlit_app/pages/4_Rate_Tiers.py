@@ -158,4 +158,7 @@ st.markdown(
 st.markdown('---')
 st.subheader('Database')
 st.caption(f'SQLite file: `{db.DB_PATH}` · {len(sites)} sites · {db.count_audit_entries()} audit entries')
-st.caption('Set the `CLEARSOL_DB_PATH` environment variable to store the database elsewhere.')
+st.caption(
+    'Set `CLEARSOL_DB_PATH` to store the database elsewhere. '
+    'Set `APP_PASSWORD` (or a Streamlit secret of the same name) to require a sign-in.'
+)
