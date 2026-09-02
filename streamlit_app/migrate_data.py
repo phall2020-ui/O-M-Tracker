@@ -14,7 +14,9 @@ import db
 import importer
 
 # Path to the JSON data files from the legacy Next.js app
-LEGACY_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'data')
+LEGACY_DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'legacy', 'nextjs', 'src', 'data'
+)
 SITES_JSON = os.path.join(LEGACY_DATA_DIR, 'sites.json')
 SPVS_JSON = os.path.join(LEGACY_DATA_DIR, 'spvs.json')
 

@@ -43,7 +43,7 @@ export function SiteForm({ site, spvs, onSubmit, onCancel, isLoading }: SiteForm
         pmCost: site.pmCost,
         cctvCost: site.cctvCost,
         cleaningCost: site.cleaningCost,
-        spvId: site.spvCode,
+        spvId: site.spvId || spvs.find((s) => s.code === site.spvCode)?.id || null,
       });
     }
   }, [site]);
@@ -194,7 +194,7 @@ export function SiteForm({ site, spvs, onSubmit, onCancel, isLoading }: SiteForm
                 >
                   <option value="">Select SPV...</option>
                   {spvs.map((spv) => (
-                    <option key={spv.id} value={spv.code}>
+                    <option key={spv.id} value={spv.id}>
                       {spv.code} - {spv.name}
                     </option>
                   ))}

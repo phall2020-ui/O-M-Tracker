@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSites, createSite, getSpvByCode } from '@/lib/db';
+import { getSites, createSite, resolveSpv } from '@/lib/db';
 import { calculateSiteWithAllTiers } from '@/lib/calculations';
 import { Site, SiteFormData } from '@/types';
 
@@ -70,12 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get SPV code if spvId provided
-    let spvCode: string | null = null;
-    if (body.spvId) {
-      const spv = getSpvByCode(body.spvId);
-      spvCode = spv?.code || null;
-    }
+    const spv = resolveSpv(body.spvId);
     
     const newSite = createSite({
       name: body.name,
@@ -86,8 +81,8 @@ export async function POST(request: NextRequest) {
       pmCost: body.pmCost || 0,
       cctvCost: body.cctvCost || 0,
       cleaningCost: body.cleaningCost || 0,
-      spvId: body.spvId || null,
-      spvCode: spvCode,
+      spvId: spv?.id || null,
+      spvCode: spv?.code || null,
       sourceSheet: null,
       sourceRow: null,
     });

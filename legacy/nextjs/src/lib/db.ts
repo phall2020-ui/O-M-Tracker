@@ -50,7 +50,17 @@ export function getSpvs(): SPV[] {
 }
 
 export function getSpvByCode(code: string): SPV | undefined {
-  return getSpvs().find(s => s.code === code);
+  return getSpvs().find(s => s.code.toLowerCase() === code.toLowerCase());
+}
+
+export function getSpvById(id: string): SPV | undefined {
+  return getSpvs().find(s => s.id === id);
+}
+
+/** Resolve an SPV from either its id or its code (the form historically sent either). */
+export function resolveSpv(idOrCode: string | null | undefined): SPV | undefined {
+  if (!idOrCode) return undefined;
+  return getSpvById(idOrCode) || getSpvByCode(idOrCode);
 }
 
 // Site Operations

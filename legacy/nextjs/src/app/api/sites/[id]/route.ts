@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSiteById, updateSite, deleteSite, getSpvByCode } from '@/lib/db';
+import { getSiteById, updateSite, deleteSite, resolveSpv } from '@/lib/db';
 import { calculateSiteWithAllTiers } from '@/lib/calculations';
 import { SiteFormData } from '@/types';
 
@@ -49,19 +49,17 @@ export async function PUT(
       );
     }
     
-    // Get SPV code if spvId changed
+    let spvId = existingSite.spvId;
     let spvCode = existingSite.spvCode;
     if (body.spvId !== undefined) {
-      if (body.spvId) {
-        const spv = getSpvByCode(body.spvId);
-        spvCode = spv?.code || null;
-      } else {
-        spvCode = null;
-      }
+      const spv = resolveSpv(body.spvId);
+      spvId = spv?.id || null;
+      spvCode = spv?.code || null;
     }
     
     const updatedSite = updateSite(id, {
       ...body,
+      spvId,
       spvCode,
     });
     
