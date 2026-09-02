@@ -165,6 +165,39 @@ class TestCalculations(unittest.TestCase):
         
         # Monthly fee should be 0 for non-contracted
         self.assertEqual(result['monthly_fee'], 0)
+    
+    def test_calculate_site_at_explicit_tier(self):
+        """Monthly fee follows the tier the portfolio is actually in."""
+        site = {
+            'system_size_kwp': 500, 'contract_status': 'Yes',
+            'pm_cost': 500, 'cctv_cost': 200, 'cleaning_cost': 300,
+        }
+        tiers = calculations.DEFAULT_RATE_TIERS
+        default = calculations.calculate_site_with_all_tiers(site, tiers)
+        self.assertEqual(default['applicable_tier'], '<20MW')
+        self.assertEqual(default['fixed_fee_current'], 2000)
+        
+        mid = calculations.calculate_site_with_all_tiers(site, tiers, '20-30MW')
+        self.assertEqual(mid['applicable_tier'], '20-30MW')
+        self.assertEqual(mid['fixed_fee_current'], 1900)
+        self.assertAlmostEqual(mid['fee_per_kwp_current'], 3.8, places=2)
+        self.assertAlmostEqual(mid['monthly_fee'], 1900 / 12, places=2)
+        
+        # Unknown tier name falls back to <20MW
+        fallback = calculations.calculate_site_with_all_tiers(site, tiers, 'nope')
+        self.assertEqual(fallback['applicable_tier'], '<20MW')
+    
+    def test_next_tier_progress(self):
+        tiers = calculations.DEFAULT_RATE_TIERS
+        info = calculations.next_tier_progress(15, tiers)
+        self.assertEqual(info['current_tier']['tier_name'], '<20MW')
+        self.assertEqual(info['next_tier']['tier_name'], '20-30MW')
+        self.assertEqual(info['mw_to_next_tier'], 5)
+        self.assertAlmostEqual(info['progress'], 0.75)
+        
+        top = calculations.next_tier_progress(35, tiers)
+        self.assertEqual(top['current_tier']['tier_name'], '30-40MW')
+        self.assertIsNone(top['next_tier'])
 
 
 class TestPortfolioSummary(unittest.TestCase):
@@ -221,6 +254,30 @@ class TestPortfolioSummary(unittest.TestCase):
         # Sites by SPV
         self.assertEqual(result['sites_by_spv']['OS2'], 2)
         self.assertEqual(result['sites_by_spv']['AD1'], 1)
+        self.assertEqual(result['capacity_by_spv']['OS2'], 1500)
+        
+        # 1.5 MW contracted -> <20MW tier; revenue = (1000+1000 + 1200+2000) / 12
+        self.assertEqual(result['current_tier'], '<20MW')
+        self.assertEqual(result['current_rate_per_kwp'], 2.0)
+        self.assertAlmostEqual(result['total_monthly_fee'], 5200 / 12, places=2)
+        self.assertEqual(result['total_annual_fee'], 5200)
+        self.assertEqual(result['total_site_fixed_costs'], 2200)
+    
+    def test_summary_prices_revenue_at_current_tier(self):
+        """Once contracted capacity crosses 20 MW the 20-30MW rate applies to every site."""
+        tiers = calculations.DEFAULT_RATE_TIERS
+        sites = [
+            {'name': 'Big', 'system_size_kwp': 25000, 'contract_status': 'Yes',
+             'pm_cost': 0, 'cctv_cost': 0, 'cleaning_cost': 0, 'spv_code': 'OS2'},
+        ]
+        result = calculations.calculate_portfolio_summary(sites, tiers)
+        self.assertEqual(result['current_tier'], '20-30MW')
+        self.assertAlmostEqual(result['total_monthly_fee'], 25000 * 1.8 / 12, places=2)
+        
+        calculated, tier = calculations.calculate_sites_at_current_tier(sites, tiers)
+        self.assertEqual(tier['tier_name'], '20-30MW')
+        self.assertEqual(calculated[0]['applicable_tier'], '20-30MW')
+        self.assertAlmostEqual(calculated[0]['monthly_fee'], result['total_monthly_fee'], places=6)
 
 
 class TestFormatting(unittest.TestCase):
