@@ -11,6 +11,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import db
+import importer
 
 # Path to the JSON data files from the legacy Next.js app
 LEGACY_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src', 'data')
@@ -64,28 +65,19 @@ def migrate_sites():
     
     print(f"  Found {len(sites_data)} sites in JSON file.")
     
-    # Transform JSON data to match our format
-    # The JSON uses camelCase, we need snake_case
-    transformed_sites = []
-    for site in sites_data:
-        transformed = {
-            'name': site.get('name', ''),
-            'system_size_kwp': site.get('systemSizeKwp', 0),
-            'site_type': site.get('siteType', 'Rooftop'),
-            'contract_status': site.get('contractStatus', 'No'),
-            'onboard_date': site.get('onboardDate'),
-            'pm_cost': site.get('pmCost', 0),
-            'cctv_cost': site.get('cctvCost', 0),
-            'cleaning_cost': site.get('cleaningCost', 0),
-            'spv_id': site.get('spvId'),
-            'spv_code': site.get('spvCode'),
-            'source_sheet': site.get('sourceSheet'),
-            'source_row': site.get('sourceRow'),
-        }
-        transformed_sites.append(transformed)
+    # The legacy JSON uses camelCase; the importer normalises and validates it
+    result = importer.parse_json_sites(sites_data, db.get_spvs_by_code())
+    for row in result.error_rows:
+        print(f"  ERROR row {row.source_row} ({row.raw.get('name')}): {'; '.join(row.errors)} — skipped")
+    for row in result.warning_rows:
+        print(f"  warning row {row.source_row} ({row.clean['name']}): {'; '.join(row.warnings)}")
     
-    # Import sites (this replaces all existing)
-    imported = db.import_sites(transformed_sites)
+    if not result.valid_sites:
+        print("  No valid sites to import.")
+        return 0
+    
+    # Import sites atomically (this replaces all existing)
+    imported = db.import_sites(result.valid_sites)
     
     print(f"  Successfully migrated {len(imported)} sites to SQLite.")
     return len(imported)
