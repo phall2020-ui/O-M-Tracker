@@ -13,6 +13,11 @@ st.set_page_config(
     layout="wide",
 )
 
+st.caption(
+    "This picture guide is for the **live** O&M tracker (the Azure site you sign into), "
+    "not the screens on this Streamlit copy."
+)
+
 guide = (
     Path(__file__).resolve().parents[2]
     / "guides"
@@ -23,4 +28,4 @@ if not guide.exists():
     st.error("The picture guide could not be found. Please open guides/add-sites-confirm-pac.html")
     st.stop()
 
-components.html(guide.read_text(encoding="utf-8"), height=2400, scrolling=True)
+components.html(guide.read_text(encoding="utf-8"), height=4200, scrolling=True)
