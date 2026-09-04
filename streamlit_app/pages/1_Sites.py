@@ -26,8 +26,15 @@ st.title("🏢 Sites")
 sites = db.get_sites()
 sites_with_calcs = [calculations.calculate_site_with_all_tiers(s) for s in sites]
 
-st.caption(f"{len(sites)} sites in portfolio")
-st.markdown("View and manage all sites in your portfolio")
+pipeline_count = len([s for s in sites if s.get('contract_status') != 'Yes'])
+contracted_count = len([s for s in sites if s.get('contract_status') == 'Yes'])
+st.caption(
+    f"{len(sites)} sites in portfolio · {pipeline_count} pipeline · {contracted_count} contracted (PAC)"
+)
+st.markdown(
+    "View and manage all sites. **Pipeline** sites are not yet PAC. "
+    "Confirm **Contract = Yes** and set the onboard date when PAC is achieved."
+)
 
 # Action buttons row
 col1, col2 = st.columns([4, 1])
@@ -37,14 +44,25 @@ with col2:
 
 st.markdown("---")
 
-# Search filter
-search = st.text_input("🔍 Search sites...", placeholder="Search by site name...")
+# Search and status filter
+col_search, col_status = st.columns([3, 1])
+with col_search:
+    search = st.text_input("🔍 Search sites...", placeholder="Search by site name...")
+with col_status:
+    status_filter = st.selectbox(
+        "Status",
+        options=["All", "Pipeline (not PAC)", "Contracted (PAC)"],
+    )
 
-# Filter data based on search
+# Filter data based on search and pipeline/PAC status
 filtered_sites = sites_with_calcs
+if status_filter == "Pipeline (not PAC)":
+    filtered_sites = [s for s in filtered_sites if s.get('contract_status') != 'Yes']
+elif status_filter == "Contracted (PAC)":
+    filtered_sites = [s for s in filtered_sites if s.get('contract_status') == 'Yes']
 if search:
     search_lower = search.lower()
-    filtered_sites = [s for s in sites_with_calcs if search_lower in s.get('name', '').lower()]
+    filtered_sites = [s for s in filtered_sites if search_lower in s.get('name', '').lower()]
 
 # Convert to DataFrame for display
 if filtered_sites:

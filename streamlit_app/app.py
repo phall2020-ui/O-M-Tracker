@@ -160,10 +160,13 @@ with col_right:
     
     st.markdown("""
     📋 **[View All Sites](/Sites)**  
-    Browse and manage your portfolio sites
+    Browse pipeline and contracted (PAC) sites
     
     ➕ **[Add New Site](/Site_Details)**  
-    Create a new site entry manually
+    Add a site to the pipeline (Contract Status = No until PAC)
+    
+    📘 **[How to add sites & confirm PAC](/How_To_PAC)**  
+    Step-by-step guide for ADE managers
     
     📤 **[Import from Excel](/Import_Data)**  
     Bulk import sites from your spreadsheet
