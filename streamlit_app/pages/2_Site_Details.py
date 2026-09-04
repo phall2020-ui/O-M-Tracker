@@ -110,9 +110,10 @@ if site_id:
             
             with col2:
                 contract_status = st.selectbox(
-                    "Contract Status",
+                    "Contract Status (PAC achieved?)",
                     options=['Yes', 'No'],
-                    index=0 if site.get('contract_status') == 'Yes' else 1
+                    index=0 if site.get('contract_status') == 'Yes' else 1,
+                    help="No = pipeline (not yet PAC). Yes = PAC achieved / contracted. Fees only apply when Yes."
                 )
                 
                 # Handle date
@@ -124,8 +125,9 @@ if site_id:
                         pass
                 
                 onboard_date = st.date_input(
-                    "Onboard Date",
-                    value=onboard_date_val
+                    "Onboard Date (PAC / O&M start date)",
+                    value=onboard_date_val,
+                    help="Required when confirming PAC. Use the PAC date — O&M fees start from this date."
                 )
                 
                 current_spv = site.get('spv_code', '')
@@ -171,6 +173,8 @@ if site_id:
             if submitted:
                 if not name or system_size <= 0:
                     st.error("Name and System Size are required!")
+                elif contract_status == 'Yes' and not onboard_date:
+                    st.error("Onboard Date is required when confirming PAC (Contract Status = Yes).")
                 else:
                     # Get SPV ID from code
                     spv = db.get_spv_by_code(spv_code) if spv_code else None
@@ -212,7 +216,7 @@ if site_id:
             | **Site Name** | {site.get('name', '')} |
             | **System Size** | {site.get('system_size_kwp', 0):,.2f} kWp |
             | **Site Type** | {site.get('site_type', 'Rooftop')} |
-            | **Contract Status** | {'✅ Yes' if site.get('contract_status') == 'Yes' else '❌ No'} |
+            | **Contract Status** | {'✅ Yes — PAC / contracted' if site.get('contract_status') == 'Yes' else '⏳ No — pipeline (not yet PAC)'} |
             | **Onboard Date** | {site.get('onboard_date', '—') or '—'} |
             | **SPV** | {site.get('spv_code', '—') or '—'} |
             """)
@@ -261,7 +265,10 @@ if site_id:
 else:
     # Create new site form
     st.title("➕ Add New Site")
-    st.caption("Create a new site entry")
+    st.caption(
+        "Add the site to the pipeline with Contract Status = No. "
+        "Only set Contract Status = Yes when PAC is achieved (site is contracted)."
+    )
     
     if st.button("← Back to Sites"):
         st.switch_page("pages/1_Sites.py")
@@ -278,8 +285,16 @@ else:
             site_type = st.selectbox("Site Type", options=['Rooftop', 'Ground Mount'])
         
         with col2:
-            contract_status = st.selectbox("Contract Status", options=['No', 'Yes'])
-            onboard_date = st.date_input("Onboard Date", value=None)
+            contract_status = st.selectbox(
+                "Contract Status (PAC achieved?)",
+                options=['No', 'Yes'],
+                help="No = pipeline (not yet PAC). Yes = PAC achieved / contracted. Fees only apply when Yes."
+            )
+            onboard_date = st.date_input(
+                "Onboard Date (PAC / O&M start date)",
+                value=None,
+                help="Leave blank for pipeline sites. Required when confirming PAC."
+            )
             spv_code = st.selectbox(
                 "SPV",
                 options=list(spv_options_with_none.keys()),
@@ -301,6 +316,8 @@ else:
         if submitted:
             if not name or system_size <= 0:
                 st.error("Name and System Size are required!")
+            elif contract_status == 'Yes' and not onboard_date:
+                st.error("Onboard Date is required when confirming PAC (Contract Status = Yes).")
             else:
                 # Get SPV ID from code
                 spv = db.get_spv_by_code(spv_code) if spv_code else None
