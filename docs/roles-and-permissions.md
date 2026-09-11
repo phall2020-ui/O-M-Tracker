@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | Admin | All portfolio, operations, import, admin, and settings pages | Manage sites, imports, billing controls, month locks, adjustments, Notion sync, CM approval, CM submission, and exports | No app restrictions |
 | Manager / Ade Asset Manager | Dashboard, Sites, Pipeline, SPV Portfolio, CM Review, Contractor Portal, Import Data | Manage sites, import operational data, manage billing month controls, approve/reject CM work, submit CM work, and export | Admin status/configuration and Settings |
-| O&M Contractor | Dashboard, Sites, Pipeline, SPV Portfolio, CM Review, Contractor Portal | Submit CM work and export visible portfolio/CM/SPV data | Imports, billing controls, Admin, Settings, site editing, CM approval |
+| O&M Contractor | Dashboard, Sites, Pipeline, SPV Portfolio, CM Review, Contractor Portal | Accept pipeline sites for O&M, submit CM work, and export visible portfolio/CM/SPV data | Imports, billing controls, Admin, Settings, other site editing, CM approval |
 | Viewer | Dashboard, Sites, Pipeline, SPV Portfolio, CM Review | Read and export visible portfolio/CM/SPV data | Contractor Portal, CM submission, CM approval, imports, billing controls, site editing, Admin, Settings |
 
 ## Export Policy

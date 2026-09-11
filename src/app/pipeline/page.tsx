@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Clock, Download, FileText, Plus, Search, Zap } from 'lucide-react';
 import { SiteFormData, SiteWithCalculations, SPV } from '@/types';
 import { calculatePipelinePortfolioCostAnnual, formatCurrency, formatNumber, isContractedStatus, isOperationalPortfolioSite } from '@/lib/calculations';
-import { canEditSites, useCurrentUser } from '@/lib/use-current-user';
+import { canAcceptPipelineSites, canEditSites, useCurrentUser } from '@/lib/use-current-user';
 import { ErrorPanel } from '@/components/ui/ErrorPanel';
 import { useContractQuery } from '@/lib/use-contract-query';
 
@@ -20,6 +20,7 @@ function PipelineContent() {
   const [savingSiteId, setSavingSiteId] = useState<string | null>(null);
   const { user } = useCurrentUser();
   const allowSiteEdits = canEditSites(user?.role);
+  const allowOmAcceptance = canAcceptPipelineSites(user?.role);
 
   const fetchPipelineSites = useCallback(async () => {
     setError(null);
@@ -130,6 +131,27 @@ function PipelineContent() {
       const current = field === 'spvId' ? site.spvCode ?? '' : site[field as keyof SiteWithCalculations] ?? '';
       return (value ?? '') !== current;
     });
+  };
+
+  const saveOmAcceptance = async (site: SiteWithCalculations, acceptedByOm: boolean) => {
+    setSavingSiteId(site.id);
+    try {
+      const res = await fetch(withContract(`/api/sites/${site.id}/om-acceptance`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acceptedByOm }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Failed to update O&M acceptance');
+        return;
+      }
+      updateVisibleSites(data.data);
+    } catch {
+      alert('Failed to update O&M acceptance');
+    } finally {
+      setSavingSiteId(null);
+    }
   };
 
   const saveInlineSite = async (
@@ -306,7 +328,7 @@ function PipelineContent() {
               <h2>Pipeline Sites</h2>
               <p>Changes auto-save, and O&M acceptance controls entry into the operational portfolio.</p>
             </div>
-            <span>{allowSiteEdits ? (savingSiteId ? 'Saving' : 'Auto-save') : 'Pipeline'}</span>
+            <span>{allowSiteEdits || allowOmAcceptance ? (savingSiteId ? 'Saving' : 'Auto-save') : 'Pipeline'}</span>
           </div>
 
           <div className="table-container compact-mobile-table sites-edit-table-container">
@@ -391,8 +413,8 @@ function PipelineContent() {
                           type="checkbox"
                           aria-label={`Accepted by O&M for ${site.name}`}
                           checked={Boolean(site.acceptedByOm)}
-                          disabled={!allowSiteEdits || savingSiteId === site.id}
-                          onChange={(event) => void saveInlineSite(site, { acceptedByOm: event.target.checked })}
+                          disabled={!allowOmAcceptance || savingSiteId === site.id}
+                          onChange={(event) => void saveOmAcceptance(site, event.target.checked)}
                         />
                       </td>
                       <td data-label="Forecast / Onboard">

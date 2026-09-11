@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canAcceptPipelineSites,
   canAccessPath,
   canCreateCmWork,
   canEditSites,
@@ -38,6 +39,8 @@ describe('role permissions', () => {
     expect(canCreateCmWork('VIEWER')).toBe(false);
     expect(canReviewCmWork('CONTRACTOR')).toBe(false);
     expect(canEditSites('CONTRACTOR')).toBe(false);
+    expect(canAcceptPipelineSites('CONTRACTOR')).toBe(true);
+    expect(canAcceptPipelineSites('VIEWER')).toBe(false);
     expect(canManageImports('CONTRACTOR')).toBe(false);
     expect(canManageBilling('CONTRACTOR')).toBe(false);
     expect(canManageAdmin('CONTRACTOR')).toBe(false);
@@ -45,6 +48,7 @@ describe('role permissions', () => {
 
   it('lets the Ade asset manager role run operational management but not admin-only configuration', () => {
     expect(canEditSites('MANAGER')).toBe(true);
+    expect(canAcceptPipelineSites('MANAGER')).toBe(true);
     expect(canReviewCmWork('MANAGER')).toBe(true);
     expect(canManageImports('MANAGER')).toBe(true);
     expect(canManageBilling('MANAGER')).toBe(true);
