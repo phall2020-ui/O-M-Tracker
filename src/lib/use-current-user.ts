@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AppRole, canEditSites, canManageBilling } from './permissions';
+import { AppRole, canAcceptPipelineSites, canEditSites, canManageBilling } from './permissions';
 
 export type ClientRole = AppRole;
 
@@ -13,7 +13,7 @@ export interface CurrentUser {
   contractorIds: string[];
 }
 
-export { canEditSites, canManageBilling };
+export { canAcceptPipelineSites, canEditSites, canManageBilling };
 
 export function useCurrentUser() {
   const [user, setUser] = useState<CurrentUser | null>(null);

@@ -377,6 +377,26 @@ export async function updateSiteRecord(id: string, data: SiteFormData, user: App
   return (await getSite(updated.id, contractId)) || calculateSiteWithAllTiers(mapPrismaSite(updated), await activeRateTiers(contractId));
 }
 
+export async function updateSiteOmAcceptance(
+  id: string,
+  acceptedByOm: boolean,
+  user: AppSessionUser,
+  contractIdInput?: string | null
+) {
+  const contractId = await resolveContractId(contractIdInput);
+  const existing = await prisma.site.findFirst({ where: { id, contractId }, include: { spv: true } });
+  if (!existing) return null;
+
+  const updated = await prisma.site.update({
+    where: { id },
+    data: { acceptedByOm },
+    include: { spv: true },
+  });
+  await refreshUnlockedAppGeneratedSnapshotsForSite(updated.id);
+  await audit(user, 'UPDATE', 'Site', updated.id, mapPrismaSite(existing), mapPrismaSite(updated));
+  return (await getSite(updated.id, contractId)) || calculateSiteWithAllTiers(mapPrismaSite(updated), await activeRateTiers(contractId));
+}
+
 export async function deleteSiteRecord(id: string, user: AppSessionUser, contractIdInput?: string | null): Promise<boolean> {
   const contractId = await resolveContractId(contractIdInput);
   const existing = await prisma.site.findFirst({ where: { id, contractId }, include: { spv: true } });

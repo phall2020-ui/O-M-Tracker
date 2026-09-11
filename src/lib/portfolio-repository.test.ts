@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { activeRateTiers, deleteSiteRecord, getSpvMonthlyReport, listSpvs, updateSiteRecord } from './portfolio-repository';
+import { activeRateTiers, deleteSiteRecord, getSpvMonthlyReport, listSpvs, updateSiteOmAcceptance, updateSiteRecord } from './portfolio-repository';
 
 const prismaMock = vi.hoisted(() => ({
   auditLog: {
@@ -206,6 +206,63 @@ describe('portfolio repository contract scoping', () => {
     expect(result).toMatchObject({
       acceptedByOm: true,
       contractStatus: 'Contracted',
+    });
+  });
+
+  it('updates only O&M acceptance for a contract-scoped site', async () => {
+    const site = {
+      id: 'site-1',
+      contractId: 'contract-1',
+      name: 'Greenacre Station',
+      systemSizeKwp: 2100,
+      siteType: 'GROUND_MOUNT',
+      contractStatus: 'CONTRACTED',
+      acceptedByOm: false,
+      onboardDate: new Date('2023-06-22T00:00:00.000Z'),
+      forecastPacDate: null,
+      actualPacDate: null,
+      pmCost: 480,
+      pmDaysOnSite: 0,
+      pmVisitsPerAnnum: 0,
+      cctvCost: 180,
+      cleaningCost: 280,
+      additionalCostAnnual: 0,
+      additionalCostAnnualComment: null,
+      additionalCostMonthly: 0,
+      additionalCostMonthlyComment: null,
+      additionalCostMonthlyStartMonth: null,
+      additionalCostMonthlyEndMonth: null,
+      billingPortfolio: 'CORE',
+      spvId: null,
+      spv: null,
+      sourceSheet: null,
+      sourceRow: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    let persisted = { ...site };
+    const user = { id: 'contractor-1', email: 'contractor@clearsol.co.uk', name: 'Contractor', role: 'CONTRACTOR' } as const;
+    prismaMock.site.findFirst.mockImplementation(async () => persisted);
+    prismaMock.site.findMany.mockImplementation(async () => [persisted]);
+    prismaMock.site.findUnique.mockResolvedValue({ contractId: 'contract-1', contract: { name: 'Example Contract' } });
+    prismaMock.site.update.mockImplementation(async ({ data }: { data: Partial<typeof site> }) => {
+      persisted = { ...persisted, ...data };
+      return persisted;
+    });
+    prismaMock.billingSnapshot.findMany.mockResolvedValue([]);
+    prismaMock.rateTier.findMany.mockResolvedValue([]);
+
+    const result = await updateSiteOmAcceptance('site-1', true, user, 'contract-code');
+
+    expect(prismaMock.site.update).toHaveBeenCalledWith({
+      where: { id: 'site-1' },
+      data: { acceptedByOm: true },
+      include: { spv: true },
+    });
+    expect(result).toMatchObject({
+      acceptedByOm: true,
+      contractStatus: 'Contracted',
+      name: 'Greenacre Station',
     });
   });
 

@@ -38,6 +38,10 @@ export function canEditSites(role?: string | null): boolean {
   return role === 'ADMIN' || role === 'MANAGER';
 }
 
+export function canAcceptPipelineSites(role?: string | null): boolean {
+  return role === 'ADMIN' || role === 'MANAGER' || role === 'CONTRACTOR';
+}
+
 export function canManageImports(role?: string | null): boolean {
   return role === 'ADMIN' || role === 'MANAGER';
 }
